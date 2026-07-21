@@ -7,6 +7,11 @@ options:
 
 settings:
   base:
+    # Apple-generic versioning so fastlane (increment_build_number/agvtool)
+    # can bump the build number per TestFlight upload.
+    VERSIONING_SYSTEM: apple-generic
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: "1.0.1"
     SWIFT_VERSION: "6.0"
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     TARGETED_DEVICE_FAMILY: "1"
@@ -22,8 +27,15 @@ targets:
     sources:
       - path: InsulinPumpSiteJournal
         excludes: ["*.entitlements"]
+    # XcodeGen generates this file on every `xcodegen generate` — the
+    # properties here are the source of truth, not the .entitlements file.
     entitlements:
       path: InsulinPumpSiteJournal/InsulinPumpSiteJournal.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.io.github.0xa10.InsulinPumpSiteJournal
+        com.apple.developer.icloud-services: [CloudKit]
+        aps-environment: development
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.0xa10.InsulinPumpSiteJournal
@@ -35,8 +47,13 @@ targets:
       path: InsulinPumpSiteJournal/Info.plist
       properties:
         CFBundleDisplayName: Rotate
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # Portrait-only apps must opt out of iPad multitasking or App Store
+        # validation rejects the upload (ITMS-90474).
+        UIRequiresFullScreen: true
         ITSAppUsesNonExemptEncryption: false
         # Loop registers the loop:// scheme; declaring it lets the handoff
         # check canOpenURL and open Loop after a placement is confirmed.
