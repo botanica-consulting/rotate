@@ -10,16 +10,28 @@ struct BodyMapView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \PlacementRecord.placedAt, order: .reverse)
     private var records: [PlacementRecord]
+    @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
+
+    private var bodyType: BodyType {
+        BodyType(rawValue: bodyTypeRaw) ?? .neutral
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    Picker("Body type", selection: $bodyTypeRaw) {
+                        ForEach(BodyType.allCases) { type in
+                            Text(type.displayName).tag(type.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("bodyTypePicker")
+
                     HStack(alignment: .top, spacing: 24) {
                         mapFigure(for: .front, title: "Front")
                         mapFigure(for: .rear, title: "Rear")
                     }
-                    .padding(.top, 8)
 
                     legend
 
@@ -62,16 +74,24 @@ struct BodyMapView: View {
         SiteRecencyModel(history: records)
     }
 
+    /// The same four sites the new-Pod flow would suggest right now.
+    private var recommendedSiteIDs: Set<String> {
+        Set(SiteSuggestionEngine().suggestions(
+            from: PumpSite.catalog,
+            history: records,
+            excluding: SiteRecencyModel(history: records).veryRecentSiteIDs
+        ).map(\.id))
+    }
+
     // MARK: Figures
 
     private func mapFigure(for bodyView: PumpSite.BodyView, title: String) -> some View {
         VStack(spacing: 8) {
-            GeometryReader { geometry in
-                let silhouette = BodySilhouette(bodyView: bodyView)
-                silhouette
-                    .fill(Color.primary.opacity(0.12))
-                    .overlay(silhouette.stroke(Color.primary.opacity(0.35), lineWidth: 1))
-                    .overlay {
+            Image(bodyType.assetName(for: bodyView))
+                .resizable()
+                .scaledToFit()
+                .overlay {
+                    GeometryReader { geometry in
                         ForEach(PumpSite.catalog.filter { $0.bodyView == bodyView }) { site in
                             marker(for: site)
                                 .position(
@@ -80,8 +100,7 @@ struct BodyMapView: View {
                                 )
                         }
                     }
-            }
-            .aspectRatio(0.45, contentMode: .fit)
+                }
 
             Text(title)
                 .font(.caption.smallCaps())
@@ -92,6 +111,7 @@ struct BodyMapView: View {
     private func marker(for site: PumpSite) -> some View {
         let tier = recency.tier(for: site.id)
         let isCurrent = site.id == currentSiteID
+        let isRecommended = recommendedSiteIDs.contains(site.id)
 
         return Circle()
             .fill(tier == .base ? Color.clear : AppTheme.color(for: tier))
@@ -107,17 +127,30 @@ struct BodyMapView: View {
                     Circle()
                         .stroke(.primary, lineWidth: 2)
                         .padding(-4)
+                } else if isRecommended {
+                    Circle()
+                        .stroke(.green, lineWidth: 2)
+                        .padding(-4)
                 }
             }
             .frame(width: 20, height: 20)
             .accessibilityElement()
-            .accessibilityLabel(accessibilityDescription(for: site, isCurrent: isCurrent))
+            .accessibilityLabel(
+                accessibilityDescription(for: site, isCurrent: isCurrent, isRecommended: isRecommended)
+            )
     }
 
-    private func accessibilityDescription(for site: PumpSite, isCurrent: Bool) -> String {
+    private func accessibilityDescription(
+        for site: PumpSite,
+        isCurrent: Bool,
+        isRecommended: Bool
+    ) -> String {
         var parts = [site.title]
         if isCurrent {
             parts.append("current site")
+        }
+        if isRecommended {
+            parts.append("recommended next")
         }
         if let lastUsed = lastUsedBySite[site.id] {
             parts.append("last used \(lastUsed.formatted(date: .abbreviated, time: .omitted))")
@@ -135,6 +168,9 @@ struct BodyMapView: View {
                 Circle()
                     .fill(Color.red)
                     .overlay(Circle().stroke(.primary, lineWidth: 2).padding(-4))
+            }
+            legendRow(label: "Recommended next") {
+                Circle().stroke(Color.green, lineWidth: 2)
             }
             legendRow(label: "Very recent (last 3 sites)") {
                 Circle().fill(Color.red)

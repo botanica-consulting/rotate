@@ -17,12 +17,10 @@ struct SiteSuggestionCard: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Spacer()
-                    BodyThumbnail(site: site, markerColor: AppTheme.color(for: tier))
-                        .frame(height: 130)
-                    Spacer()
-                }
+                BodyThumbnail(site: site, markerColor: AppTheme.color(for: tier), zoom: 1.35)
+                    .frame(height: 140)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
 
                 Text(site.bodyView == .front ? "Front" : "Rear")
                     .font(.caption2.smallCaps())

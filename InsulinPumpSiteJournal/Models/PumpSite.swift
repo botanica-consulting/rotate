@@ -38,7 +38,7 @@ extension PumpSite {
             title: "Upper-left abdomen",
             shortTitle: "Upper-Left Abdomen",
             bodyView: .front,
-            markerPosition: CGPoint(x: 0.57, y: 0.36),
+            markerPosition: CGPoint(x: 0.60, y: 0.37),
             region: .abdomen
         ),
         PumpSite(
@@ -46,7 +46,7 @@ extension PumpSite {
             title: "Upper-right abdomen",
             shortTitle: "Upper-Right Abdomen",
             bodyView: .front,
-            markerPosition: CGPoint(x: 0.43, y: 0.36),
+            markerPosition: CGPoint(x: 0.40, y: 0.37),
             region: .abdomen
         ),
         PumpSite(
@@ -54,7 +54,7 @@ extension PumpSite {
             title: "Lower-left abdomen",
             shortTitle: "Lower-Left Abdomen",
             bodyView: .front,
-            markerPosition: CGPoint(x: 0.56, y: 0.46),
+            markerPosition: CGPoint(x: 0.585, y: 0.46),
             region: .abdomen
         ),
         PumpSite(
@@ -62,7 +62,7 @@ extension PumpSite {
             title: "Lower-right abdomen",
             shortTitle: "Lower-Right Abdomen",
             bodyView: .front,
-            markerPosition: CGPoint(x: 0.44, y: 0.46),
+            markerPosition: CGPoint(x: 0.415, y: 0.46),
             region: .abdomen
         ),
         PumpSite(
@@ -70,7 +70,7 @@ extension PumpSite {
             title: "Left thigh",
             shortTitle: "Left Thigh",
             bodyView: .front,
-            markerPosition: CGPoint(x: 0.585, y: 0.67),
+            markerPosition: CGPoint(x: 0.61, y: 0.60),
             region: .thigh
         ),
         PumpSite(
@@ -78,7 +78,7 @@ extension PumpSite {
             title: "Right thigh",
             shortTitle: "Right Thigh",
             bodyView: .front,
-            markerPosition: CGPoint(x: 0.415, y: 0.67),
+            markerPosition: CGPoint(x: 0.39, y: 0.60),
             region: .thigh
         ),
         PumpSite(
@@ -86,7 +86,7 @@ extension PumpSite {
             title: "Left upper arm",
             shortTitle: "Left Arm",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.285, y: 0.285),
+            markerPosition: CGPoint(x: 0.26, y: 0.28),
             region: .arm
         ),
         PumpSite(
@@ -94,7 +94,7 @@ extension PumpSite {
             title: "Right upper arm",
             shortTitle: "Right Arm",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.715, y: 0.285),
+            markerPosition: CGPoint(x: 0.74, y: 0.28),
             region: .arm
         ),
         PumpSite(
@@ -102,7 +102,7 @@ extension PumpSite {
             title: "Left lower back",
             shortTitle: "Left Lower Back",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.44, y: 0.47),
+            markerPosition: CGPoint(x: 0.41, y: 0.42),
             region: .lowerBack
         ),
         PumpSite(
@@ -110,7 +110,7 @@ extension PumpSite {
             title: "Right lower back",
             shortTitle: "Right Lower Back",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.56, y: 0.47),
+            markerPosition: CGPoint(x: 0.59, y: 0.42),
             region: .lowerBack
         ),
         PumpSite(
@@ -118,7 +118,7 @@ extension PumpSite {
             title: "Left upper buttock",
             shortTitle: "Left Buttock",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.44, y: 0.59),
+            markerPosition: CGPoint(x: 0.40, y: 0.51),
             region: .upperButtock
         ),
         PumpSite(
@@ -126,7 +126,7 @@ extension PumpSite {
             title: "Right upper buttock",
             shortTitle: "Right Buttock",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.56, y: 0.59),
+            markerPosition: CGPoint(x: 0.60, y: 0.51),
             region: .upperButtock
         ),
     ]

@@ -1,18 +1,26 @@
 import SwiftUI
 
-/// A front or rear body silhouette with the site's marker overlaid at its
-/// normalized position. Plain, high-contrast surface — never under glass.
+/// A front or rear body figure (SVG line art, per the selected body type)
+/// with the site's marker overlaid at its normalized position. `zoom` scales
+/// the figure toward the marker so cards emphasize the area while keeping
+/// enough of the body visible for context; the parent clips the overflow.
 struct BodyThumbnail: View {
     let site: PumpSite
     var markerColor: Color = AppTheme.accent
+    var zoom: CGFloat = 1
+
+    @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
+
+    private var bodyType: BodyType {
+        BodyType(rawValue: bodyTypeRaw) ?? .neutral
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            let silhouette = BodySilhouette(bodyView: site.bodyView)
-            silhouette
-                .fill(Color.primary.opacity(0.22))
-                .overlay(silhouette.stroke(Color.primary.opacity(0.45), lineWidth: 1))
-                .overlay {
+        Image(bodyType.assetName(for: site.bodyView))
+            .resizable()
+            .scaledToFit()
+            .overlay {
+                GeometryReader { geometry in
                     Circle()
                         .fill(markerColor)
                         .overlay(Circle().stroke(.background, lineWidth: 2))
@@ -22,10 +30,13 @@ struct BodyThumbnail: View {
                             y: geometry.size.height * site.markerPosition.y
                         )
                 }
-        }
-        .aspectRatio(0.45, contentMode: .fit)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityDescription)
+            }
+            .scaleEffect(
+                zoom,
+                anchor: UnitPoint(x: site.markerPosition.x, y: site.markerPosition.y)
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityDescription)
     }
 
     private var accessibilityDescription: String {
