@@ -146,22 +146,7 @@ extension PumpSite {
         uniqueKeysWithValues: catalog.map { ($0.id, $0) }
     )
 
-    /// History written before the region remodel used quadrant-style IDs;
-    /// map them onto the nearest current site so old records stay readable.
-    private static let legacyIDMap: [String: String] = [
-        "abdomen-upper-left": "abdomen-left",
-        "abdomen-lower-left": "abdomen-left",
-        "abdomen-upper-right": "abdomen-right",
-        "abdomen-lower-right": "abdomen-right",
-        "thigh-left": "front-thigh-left",
-        "thigh-right": "front-thigh-right",
-        "arm-upper-left": "back-upper-arm-left",
-        "arm-upper-right": "back-upper-arm-right",
-        "buttock-upper-left": "upper-buttock-left",
-        "buttock-upper-right": "upper-buttock-right",
-    ]
-
     static func site(for id: String) -> PumpSite? {
-        byID[id] ?? legacyIDMap[id].flatMap { byID[$0] }
+        byID[SiteID.canonical(id)]
     }
 }

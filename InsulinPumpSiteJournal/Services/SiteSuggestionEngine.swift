@@ -30,14 +30,16 @@ struct SiteSuggestionEngine {
             return result
         }
 
+        // Group by canonical ID so pre-remodel records keep counting toward
+        // rotation safety (a legacy abdomen record must age the abdomen).
         let lastUsedBySite = Dictionary(
             grouping: history,
-            by: \.siteID
+            by: { SiteID.canonical($0.siteID) }
         ).mapValues { records in
             records.map(\.placedAt).max()!
         }
 
-        let previousSiteID = history.max { $0.placedAt < $1.placedAt }!.siteID
+        let previousSiteID = SiteID.canonical(history.max { $0.placedAt < $1.placedAt }!.siteID)
 
         // `sites` is catalog-ordered; the enumeration offset is the stable tie-breaker.
         let candidates = sites.enumerated()

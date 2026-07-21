@@ -55,4 +55,4 @@ properties). To turn sync on:
 - `Models/` — `PlacementRecord` (SwiftData) and the compile-time `PumpSite` catalog (12 sites)
 - `Services/SiteSuggestionEngine.swift` — deterministic LRU + region-diversity picker
 - `Views/` — history home, new-Pod flow (suggestions → confirm → Loop handoff), body silhouettes
-- `Design/AppTheme.swift` — teal accent, orange for recent history, rounded type
+- `Design/AppTheme.swift` — Loop's palette (systemBlue accent, insulin orange for recent history), rounded type

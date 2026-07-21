@@ -17,15 +17,13 @@ final class CriticalPathUITests: XCTestCase {
         XCTAssertTrue(firstCard.waitForExistence(timeout: 5))
         firstCard.tap()
 
-        // Confirm.
+        // Continue to the placement instructions.
         let confirmButton = app.buttons["confirmSiteButton"]
         XCTAssertTrue(confirmButton.waitForExistence(timeout: 5))
         confirmButton.tap()
-
-        // See the placement instructions and Loop handoff.
         XCTAssertTrue(app.staticTexts["Place your Pod"].waitForExistence(timeout: 5))
 
-        // Dismiss.
+        // Nothing is saved yet — confirming here performs the save.
         app.buttons["continueInLoopButton"].tap()
 
         // The hero page shows the new placement as the current Pod. With a
@@ -37,23 +35,30 @@ final class CriticalPathUITests: XCTestCase {
             "hero card should name the saved site, got: \(heroCard.label)"
         )
 
-        // Page up to history and open the record.
+        // Page up to history and open the record (rows are lazy — they exist
+        // once the page-up scroll brings them in).
         app.buttons["historyHintButton"].tap()
         let newRow = app.descendants(matching: .any)["historyRow-0"]
-        XCTAssertTrue(newRow.waitForExistence(timeout: 5))
-        Thread.sleep(forTimeInterval: 0.8) // let the page-up scroll settle
+        XCTAssertTrue(waitUntilHittable(newRow), "history row never became tappable")
         newRow.tap()
 
         // Add a note to the record and close it.
         let notesField = app.descendants(matching: .any)["notesField"]
         XCTAssertTrue(notesField.waitForExistence(timeout: 5))
         app.swipeUp() // raise the sheet so the notes field is reachable
+        XCTAssertTrue(waitUntilHittable(notesField), "notes field never became tappable")
         notesField.tap()
         notesField.typeText("Leaked a little")
         app.buttons["closeRecordButton"].tap()
 
-        // The note round-trips: reopen the record and find the text.
-        XCTAssertTrue(newRow.waitForExistence(timeout: 5))
+        // The note round-trips: reopen the record and find the text. The
+        // scroll may have settled back on the hero while the sheet was up,
+        // dropping the lazy row — page back to history first if so.
+        let hint = app.buttons["historyHintButton"]
+        if !newRow.exists, hint.waitForExistence(timeout: 2), hint.isHittable {
+            hint.tap()
+        }
+        XCTAssertTrue(waitUntilHittable(newRow))
         newRow.tap()
         let savedField = app.descendants(matching: .any)["notesField"]
         XCTAssertTrue(savedField.waitForExistence(timeout: 5))
@@ -61,6 +66,27 @@ final class CriticalPathUITests: XCTestCase {
             (savedField.value as? String)?.contains("Leaked") == true,
             "note should persist, got: \(String(describing: savedField.value))"
         )
-        app.buttons["closeRecordButton"].tap()
+
+        // Deleting asks for confirmation; removing the only record empties
+        // the journal (deletion never resurrects other state).
+        app.swipeUp()
+        let deleteButton = app.buttons["deleteRecordButton"]
+        XCTAssertTrue(waitUntilHittable(deleteButton))
+        deleteButton.tap()
+        // Confirmation dialogs mirror their buttons in the element tree.
+        let confirmDelete = app.buttons["confirmDeleteRecordButton"].firstMatch
+        XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5))
+        confirmDelete.tap()
+        XCTAssertTrue(
+            app.staticTexts["No placements yet"].waitForExistence(timeout: 5),
+            "deleting the only record should leave an empty journal"
+        )
+    }
+
+    @MainActor
+    private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "exists == true AND hittable == true")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
     }
 }

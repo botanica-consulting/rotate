@@ -10,7 +10,9 @@ asset file names are mirror-consistent with the front (\"left\" always sits on
 the viewer's right), so rear file names have left/right SWAPPED relative to
 the site they represent. This script performs that remap.
 
-Usage: python3 scripts/generate_site_areas.py <outputs-dir>
+Usage: python3 scripts/generate_site_areas.py [source-dir]
+Defaults to the vendored sources in assets-src/site-areas, so the catalog is
+reproducible from the repository alone.
 """
 import re
 import sys
@@ -79,4 +81,5 @@ def main(outputs: Path) -> None:
     print(f"wrote {dest.name}: {counts}")
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]))
+    default = Path(__file__).resolve().parent.parent / "assets-src/site-areas"
+    main(Path(sys.argv[1]) if len(sys.argv) > 1 else default)

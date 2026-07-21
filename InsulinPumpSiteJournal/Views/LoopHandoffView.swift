@@ -1,12 +1,14 @@
 import SwiftUI
+import UIKit
 
-/// Shown inside the new-Pod flow after a placement is saved: placement
-/// instructions for the chosen site, then the handoff to Loop. Deliberately
-/// does not attempt to launch Loop — that requires a verified integration
-/// mechanism and is deferred.
+/// Shown inside the new-Pod flow after choosing a site: placement
+/// instructions, then the confirm-and-hand-off-to-Loop step. Nothing is
+/// saved until the primary button — confirming records the placement and,
+/// when Loop is installed, opens it (Loop registers the `loop://` scheme;
+/// it has no pod-setup deep link, so this lands on Loop's main screen).
 struct LoopHandoffView: View {
     let site: PumpSite
-    let onContinue: () -> Void
+    let onConfirm: () -> Void
     let onChooseAnother: () -> Void
 
     @AppStorage(MeasurementUnit.storageKey) private var unitRaw = MeasurementUnit.system.rawValue
@@ -15,67 +17,80 @@ struct LoopHandoffView: View {
         MeasurementUnit(rawValue: unitRaw) ?? .system
     }
 
+    static let loopURL = URL(string: "loop://")!
+
+    private var canOpenLoop: Bool {
+        UIApplication.shared.canOpenURL(Self.loopURL)
+    }
+
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
+        // ScrollView so accessibility text sizes grow past the screen
+        // instead of clipping.
+        ScrollView {
+            VStack(spacing: 16) {
+                Text("Place your Pod")
+                    .font(.largeTitle.bold())
+                    .padding(.top, 32)
 
-            Text("Place your Pod")
-                .font(.largeTitle.bold())
+                Text("\(site.title) is saved to your journal when you confirm below.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
 
-            Text("\(site.title) is saved to your history.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            VStack(alignment: .leading, spacing: 14) {
-                instruction(unit.spacingInstruction, systemImage: "ruler")
-                instruction(
-                    "Keep clear of waistbands and spots where clothing rubs.",
-                    systemImage: "tshirt"
-                )
-                instruction(
-                    "Clean the skin and let it dry fully before applying.",
-                    systemImage: "drop"
-                )
-                instruction(
-                    "When the Pod is on, open Loop to activate and pair it.",
-                    systemImage: "arrow.triangle.2.circlepath"
-                )
+                VStack(alignment: .leading, spacing: 14) {
+                    instruction(unit.spacingInstruction, systemImage: "ruler")
+                    instruction(
+                        "Keep clear of waistbands and spots where clothing rubs.",
+                        systemImage: "tshirt"
+                    )
+                    instruction(
+                        "Clean the skin and let it dry fully before applying.",
+                        systemImage: "drop"
+                    )
+                    instruction(
+                        "When the Pod is on, open Loop to activate and pair it.",
+                        systemImage: "arrow.triangle.2.circlepath"
+                    )
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.thinMaterial, in: .rect(cornerRadius: AppTheme.cardCornerRadius))
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.thinMaterial, in: .rect(cornerRadius: AppTheme.cardCornerRadius))
-
-            Spacer()
-
-            Button {
-                onContinue()
-            } label: {
-                Text("Continue in Loop")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.glassProminent)
-            .tint(AppTheme.accent)
-            .controlSize(.large)
-            .accessibilityIdentifier("continueInLoopButton")
-
-            Button {
-                onChooseAnother()
-            } label: {
-                Text("Choose another site")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.glass)
-            .controlSize(.large)
-            .accessibilityIdentifier("chooseAnotherSiteButton")
-
-            Text("You can close this app and switch to Loop.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 4)
+            .padding(.horizontal, 24)
         }
-        .padding(24)
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 16) {
+                Button {
+                    onConfirm()
+                } label: {
+                    Text(canOpenLoop ? "Pod is on — Open Loop" : "Pod is on — Save")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(AppTheme.accent)
+                .controlSize(.large)
+                .accessibilityIdentifier("continueInLoopButton")
+
+                Button {
+                    onChooseAnother()
+                } label: {
+                    Text("Choose another site")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+                .controlSize(.large)
+                .accessibilityIdentifier("chooseAnotherSiteButton")
+
+                Text(canOpenLoop
+                    ? "Confirming saves the placement and opens Loop."
+                    : "Confirming saves the placement. Then open Loop to pair.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
+        }
     }
 
     private func instruction(_ text: String, systemImage: String) -> some View {
@@ -91,5 +106,5 @@ struct LoopHandoffView: View {
 }
 
 #Preview("Handoff") {
-    LoopHandoffView(site: PumpSite.catalog[4], onContinue: {}, onChooseAnother: {})
+    LoopHandoffView(site: PumpSite.catalog[4], onConfirm: {}, onChooseAnother: {})
 }

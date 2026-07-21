@@ -3,11 +3,12 @@ import Testing
 @testable import InsulinPumpSiteJournal
 
 struct SiteAreaCatalogTests {
-    @Test func womanHasAnAreaForEveryCatalogSite() {
+    @Test(arguments: BodyType.allCases)
+    func everyBodyTypeHasAnAreaForEveryCatalogSite(bodyType: BodyType) {
         for site in PumpSite.catalog {
             #expect(
-                SiteAreaCatalog.area(for: site.id, bodyType: .woman) != nil,
-                "missing woman area for \(site.id)"
+                SiteAreaCatalog.area(for: site.id, bodyType: bodyType) != nil,
+                "missing \(bodyType.rawValue) area for \(site.id)"
             )
         }
     }
@@ -32,10 +33,11 @@ struct SiteAreaCatalogTests {
     /// Wearer-relative sides: on the FRONT the wearer's left renders on the
     /// viewer's right (mirror); on the REAR (standard posterior anatomy) the
     /// wearer's left renders on the viewer's left. Verifies the generator's
-    /// rear left/right remap.
-    @Test func areaSidesMatchWearerAnatomy() {
+    /// rear left/right remap for every body type.
+    @Test(arguments: BodyType.allCases)
+    func areaSidesMatchWearerAnatomy(bodyType: BodyType) {
         for site in PumpSite.catalog {
-            guard let area = SiteAreaCatalog.area(for: site.id, bodyType: .woman) else { continue }
+            guard let area = SiteAreaCatalog.area(for: site.id, bodyType: bodyType) else { continue }
             let mid = SVGPathParser.path(from: area.pathData).boundingRect.midX
             let onViewerRight = mid > area.viewBoxWidth / 2
             let isWearerLeft = site.id.contains("-left")

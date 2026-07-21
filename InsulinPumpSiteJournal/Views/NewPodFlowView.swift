@@ -3,11 +3,13 @@ import SwiftData
 
 /// The full-screen new-Pod flow. One view, state-driven: choosing (four
 /// suggestion cards, then a confirmation control once a card is selected)
-/// and the Loop handoff after saving. The handoff is a state of this view,
-/// not a separate navigation destination.
+/// and the placement instructions. Nothing is written until the user
+/// confirms the Pod is on — abandoning the flow leaves the journal
+/// untouched.
 struct NewPodFlowView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -16,24 +18,24 @@ struct NewPodFlowView: View {
     @State private var recency = SiteRecencyModel(history: [])
     @State private var shownSiteIDs: Set<String> = []
     @State private var selectedSite: PumpSite?
-    @State private var savedSite: PumpSite?
-    @State private var savedRecord: PlacementRecord?
-    /// The previously current record, whose stop time this save stamped —
-    /// kept so "Choose another site" can restore it.
-    @State private var closedRecord: PlacementRecord?
+    /// Site being placed on the instruction screen — not yet saved.
+    @State private var pendingSite: PumpSite?
+    @State private var savedCount = 0
+    @State private var saveError: Error?
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16),
-    ]
+    /// One column at accessibility text sizes so card content never crams.
+    private var columns: [GridItem] {
+        let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
+    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if let savedSite {
+                if let pendingSite {
                     LoopHandoffView(
-                        site: savedSite,
-                        onContinue: { dismiss() },
+                        site: pendingSite,
+                        onConfirm: { finishPlacement(pendingSite) },
                         onChooseAnother: chooseAnotherSite
                     )
                     .transition(handoffTransition)
@@ -46,13 +48,13 @@ struct NewPodFlowView: View {
             // The full title ellipsizes at accessibility text sizes; fall back
             // to a shorter one there instead of truncating.
             .navigationTitle(
-                savedSite != nil ? ""
+                pendingSite != nil ? ""
                     : dynamicTypeSize.isAccessibilitySize ? "Next site"
                     : "Choose your next site"
             )
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                if savedSite == nil {
+                if pendingSite == nil {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
                             shuffle()
@@ -77,8 +79,20 @@ struct NewPodFlowView: View {
         }
         .sensoryFeedback(.selection, trigger: selectedSite)
         .sensoryFeedback(.impact(flexibility: .soft), trigger: shownSiteIDs)
-        .sensoryFeedback(.success, trigger: savedSite) { _, newValue in
-            newValue != nil
+        .sensoryFeedback(.success, trigger: savedCount) { _, newValue in
+            newValue > 0
+        }
+        .alert(
+            "Couldn't save",
+            isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            ),
+            presenting: saveError
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { error in
+            Text("The placement was not recorded. \(error.localizedDescription)")
         }
         .task {
             loadSuggestionsIfNeeded()
@@ -110,7 +124,9 @@ struct NewPodFlowView: View {
 
             if let site = selectedSite {
                 Button {
-                    confirm(site)
+                    withAnimation(selectionAnimation) {
+                        pendingSite = site
+                    }
                 } label: {
                     Text("Use \(site.shortTitle)")
                         .frame(maxWidth: .infinity)
@@ -137,17 +153,13 @@ struct NewPodFlowView: View {
     }
 
     private func fetchHistory() -> [PlacementRecord] {
-        let descriptor = FetchDescriptor<PlacementRecord>(
-            sortBy: [SortDescriptor(\.placedAt, order: .reverse)]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
+        (try? JournalStore(context: modelContext).history()) ?? []
     }
 
     private func loadSuggestionsIfNeeded() {
         guard suggestions.isEmpty else { return }
         let history = fetchHistory()
-        lastUsedBySite = Dictionary(grouping: history, by: \.siteID)
-            .compactMapValues { $0.map(\.placedAt).max() }
+        lastUsedBySite = PlacementTimeline(records: history).lastUsedBySite
         recency = SiteRecencyModel(history: history)
         suggestions = SiteSuggestionEngine().suggestions(
             from: PumpSite.catalog,
@@ -186,31 +198,23 @@ struct NewPodFlowView: View {
         shownSiteIDs.formUnion(next.map(\.id))
     }
 
-    private func confirm(_ site: PumpSite) {
-        let record = PlacementRecord(siteID: site.id)
-        // The outgoing Pod comes off when the new one goes on.
-        if let current = fetchHistory().first, current.removedAt == nil {
-            current.removedAt = record.placedAt
-            closedRecord = current
-        }
-        modelContext.insert(record)
-        try? modelContext.save()
-        savedRecord = record
-        withAnimation(selectionAnimation) {
-            savedSite = site
+    /// The one write in the flow: atomically closes the previous Pod and
+    /// records the new placement. On failure the journal is untouched and
+    /// the user stays here.
+    private func finishPlacement(_ site: PumpSite) {
+        do {
+            try JournalStore(context: modelContext).startPlacement(siteID: site.id)
+            savedCount += 1
+            openURL(LoopHandoffView.loopURL)
+            dismiss()
+        } catch {
+            saveError = error
         }
     }
 
     private func chooseAnotherSite() {
-        if let savedRecord {
-            modelContext.delete(savedRecord)
-        }
-        closedRecord?.removedAt = nil
-        try? modelContext.save()
-        savedRecord = nil
-        closedRecord = nil
         withAnimation(selectionAnimation) {
-            savedSite = nil
+            pendingSite = nil
             selectedSite = nil
         }
     }

@@ -15,7 +15,8 @@ let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
 let context = CGContext(
     data: nil, width: size, height: size,
     bitsPerComponent: 8, bytesPerRow: 0, space: colorSpace,
-    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    // No alpha channel: App Store icons must be opaque RGB.
+    bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
 )!
 
 // Draw in y-down design coordinates on a 1024 grid.

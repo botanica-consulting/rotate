@@ -27,13 +27,16 @@ final class AccessibilityUITests: XCTestCase {
             "card label should describe the body view, got: \(firstCard.label)"
         )
 
-        // Selection is exposed as a trait, not just color. The glass morph
-        // briefly duplicates the element mid-animation, so let it settle and
-        // resolve via firstMatch.
+        // Selection is exposed as a trait, not just color. The glass
+        // treatment briefly duplicates the element mid-animation, so wait on
+        // the resolved state instead of sleeping.
         XCTAssertFalse(firstCard.isSelected)
         firstCard.tap()
-        Thread.sleep(forTimeInterval: 0.8)
-        XCTAssertTrue(firstCard.firstMatch.isSelected)
+        let selected = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isSelected == true"),
+            object: firstCard.firstMatch
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [selected], timeout: 5), .completed)
 
         // Confirm control: ≥44pt and names the site.
         let confirm = app.buttons["confirmSiteButton"]
@@ -42,17 +45,25 @@ final class AccessibilityUITests: XCTestCase {
         XCTAssertTrue(confirm.label.localizedCaseInsensitiveContains("abdomen"))
         confirm.tap()
 
-        // Handoff buttons ≥44pt.
+        // Handoff buttons ≥44pt; confirming saves the placement.
         let continueButton = app.buttons["continueInLoopButton"]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 5))
         XCTAssertGreaterThanOrEqual(continueButton.frame.height, 44)
         XCTAssertGreaterThanOrEqual(app.buttons["chooseAnotherSiteButton"].frame.height, 44)
         continueButton.tap()
 
-        // History row: VoiceOver label carries an absolute date (month name),
-        // not only the relative "now".
+        // History row (reached via the page-up hint; rows are lazy):
+        // VoiceOver label carries an absolute date (month name), not only
+        // the relative "now".
+        let hint = app.buttons["historyHintButton"]
+        XCTAssertTrue(hint.waitForExistence(timeout: 5))
+        hint.tap()
         let row = app.descendants(matching: .any)["historyRow-0"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        let rowReady = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND hittable == true"),
+            object: row
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [rowReady], timeout: 5), .completed)
         let monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         XCTAssertTrue(

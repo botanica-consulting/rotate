@@ -16,7 +16,8 @@ struct SiteRecencyModel {
     private let rankBySite: [String: Int]
 
     init(history: [PlacementRecord]) {
-        let lastUsedBySite = Dictionary(grouping: history, by: \.siteID)
+        // Group by canonical ID so pre-remodel records count toward recency.
+        let lastUsedBySite = Dictionary(grouping: history, by: { SiteID.canonical($0.siteID) })
             .compactMapValues { $0.map(\.placedAt).max() }
         let ranked = lastUsedBySite.sorted { a, b in
             a.value == b.value ? a.key < b.key : a.value > b.value

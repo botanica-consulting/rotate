@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(MeasurementUnit.storageKey) private var unitRaw = MeasurementUnit.system.rawValue
     @State private var confirmingReset = false
+    @State private var resetError: Error?
 
     var body: some View {
         NavigationStack {
@@ -34,6 +35,11 @@ struct SettingsView: View {
                 } footer: {
                     Text("Deletes every Pod record. Settings are kept.")
                 }
+
+                Section {
+                } footer: {
+                    Text("Privacy: your journal is stored only on this device. It leaves the device only through your encrypted device backup — iCloud sync is off.")
+                }
             }
             .confirmationDialog(
                 "Delete all Pod records?",
@@ -47,6 +53,18 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This removes your entire placement history. It can't be undone.")
+            }
+            .alert(
+                "Couldn't reset the journal",
+                isPresented: Binding(
+                    get: { resetError != nil },
+                    set: { if !$0 { resetError = nil } }
+                ),
+                presenting: resetError
+            ) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { error in
+                Text("Nothing was deleted. \(error.localizedDescription)")
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -62,14 +80,12 @@ struct SettingsView: View {
     }
 
     private func resetJournal() {
-        // Delete through fetched instances (not the batch API) so the home
-        // screen's @Query observes the change immediately.
-        let records = (try? modelContext.fetch(FetchDescriptor<PlacementRecord>())) ?? []
-        for record in records {
-            modelContext.delete(record)
+        do {
+            try JournalStore(context: modelContext).reset()
+            dismiss()
+        } catch {
+            resetError = error
         }
-        try? modelContext.save()
-        dismiss()
     }
 }
 

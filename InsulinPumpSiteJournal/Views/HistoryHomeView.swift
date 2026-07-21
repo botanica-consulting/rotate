@@ -3,7 +3,8 @@ import SwiftData
 
 /// Root view: a full-screen card for the Pod that's on now, with the journal
 /// history one page-swipe up. History content stays on plain, high-contrast
-/// surfaces — Liquid Glass is reserved for the New Pod button.
+/// surfaces — Liquid Glass is reserved for the New Pod button. Layout and
+/// user intent only: lifecycle rules live in PlacementTimeline/JournalStore.
 struct HistoryHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \PlacementRecord.placedAt, order: .reverse)
@@ -16,9 +17,14 @@ struct HistoryHomeView: View {
     /// Deletion requested from the detail sheet; performed after it dismisses
     /// so the sheet never animates out holding a deleted model.
     @State private var pendingDelete: PlacementRecord?
+    @State private var storeError: Error?
     /// Live scroll offset for the paging behavior — a reference box, not
     /// invalidating @State, so tracking it doesn't re-render every frame.
     @State private var scrollOffset = ScrollOffsetBox()
+
+    private var timeline: PlacementTimeline {
+        PlacementTimeline(records: records)
+    }
 
     var body: some View {
         NavigationStack {
@@ -65,9 +71,21 @@ struct HistoryHomeView: View {
             .sheet(item: $selectedRecord, onDismiss: performPendingDelete) { record in
                 PodRecordDetailView(
                     record: record,
-                    stop: stopDate(for: record),
+                    stop: timeline.entries.first { $0.id == record.id }?.stop,
                     onDelete: { pendingDelete = record }
                 )
+            }
+            .alert(
+                "Couldn't update your journal",
+                isPresented: Binding(
+                    get: { storeError != nil },
+                    set: { if !$0 { storeError = nil } }
+                ),
+                presenting: storeError
+            ) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { error in
+                Text(error.localizedDescription)
             }
         }
         .fontDesign(.rounded)
@@ -128,8 +146,10 @@ struct HistoryHomeView: View {
     private func heroPage(proxy: ScrollViewProxy) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Current")
-            if let current = records.first {
+            if let current = timeline.current {
                 currentPodCard(for: current)
+            } else {
+                noPodCard
             }
             Spacer()
             Button {
@@ -163,22 +183,22 @@ struct HistoryHomeView: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    private func currentPodCard(for record: PlacementRecord) -> some View {
+    private func currentPodCard(for entry: PlacementTimeline.Entry) -> some View {
         Button {
-            selectedRecord = record
+            selectedRecord = entry.record
         } label: {
             HStack(alignment: .bottom, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(siteTitle(for: record))
+                    Text(siteTitle(for: entry))
                         .font(.title3.weight(.semibold))
-                    Text("Placed \(record.placedAt.formatted(.relative(presentation: .named)))")
+                    Text("Placed \(entry.placedAt.formatted(.relative(presentation: .named)))")
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.recent)
-                    PodAgeCounter(placedAt: record.placedAt)
+                    PodAgeCounter(placedAt: entry.placedAt)
                         .padding(.top, 10)
                 }
                 Spacer()
-                if let site = PumpSite.site(for: record.siteID) {
+                if let site = PumpSite.site(for: entry.siteID) {
                     VignettedBodyThumbnail(site: site, fill: AppTheme.recent)
                         .frame(width: 96, height: 96)
                 }
@@ -194,23 +214,46 @@ struct HistoryHomeView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(
-            "Current site: \(siteTitle(for: record)), on for \(PodAgeCounter.spokenText(at: .now, since: record.placedAt)), placed \(absoluteDate(record.placedAt))"
+            "Current site: \(siteTitle(for: entry)), on for \(PodAgeCounter.spokenText(at: .now, since: entry.placedAt)), placed \(absoluteDate(entry.placedAt))"
         )
         .accessibilityHint("Opens this Pod's record to review times or add notes.")
         .accessibilityIdentifier("currentPodCard")
+    }
+
+    /// The valid in-between state: history exists, but the newest Pod has a
+    /// removal time and nothing has replaced it yet.
+    private var noPodCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("No Pod on")
+                .font(.title3.weight(.semibold))
+            if let last = timeline.entries.first, let stop = last.stop {
+                Text("Last site: \(siteTitle(for: last)), removed \(absoluteDate(stop))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Text("Tap New Pod when you place your next one.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius)
+                .fill(.thinMaterial)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("noPodCard")
     }
 
     private var historyPage: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("History")
 
-            // Deliberately not lazy: histories stay small (a Pod every ~3
-            // days) and eager rows keep the full journal reachable by
-            // VoiceOver and UI tests without scrolling games.
-            VStack(spacing: 0) {
-                ForEach(Array(records.enumerated()), id: \.element.id) { index, record in
-                    historyRow(for: record, index: index)
-                    if index < records.count - 1 {
+            LazyVStack(spacing: 0) {
+                let entries = timeline.entries
+                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    historyRow(for: entry, index: index)
+                    if index < entries.count - 1 {
                         Divider()
                             .padding(.leading, 16)
                     }
@@ -228,33 +271,32 @@ struct HistoryHomeView: View {
         .padding(.bottom, 16)
     }
 
-    private func historyRow(for record: PlacementRecord, index: Int) -> some View {
-        let stop = stopDate(for: record)
-        return Button {
-            selectedRecord = record
+    private func historyRow(for entry: PlacementTimeline.Entry, index: Int) -> some View {
+        Button {
+            selectedRecord = entry.record
         } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(siteTitle(for: record))
+                        Text(siteTitle(for: entry))
                             .font(.body.weight(.medium))
-                        if !record.notes.isEmpty {
+                        if !entry.record.notes.isEmpty {
                             Image(systemName: "note.text")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Text(wearRangeText(for: record, stop: stop))
+                    Text(wearRangeText(for: entry))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                if let stop {
-                    Text(PodAgeCounter.text(at: stop, since: record.placedAt))
+                if let stop = entry.stop {
+                    Text(PodAgeCounter.text(at: stop, since: entry.placedAt))
                         .font(.system(.subheadline, design: .monospaced).weight(.medium))
                         .foregroundStyle(.secondary)
                 } else {
-                    PodAgeCounter(placedAt: record.placedAt)
+                    PodAgeCounter(placedAt: entry.placedAt)
                 }
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
@@ -267,14 +309,15 @@ struct HistoryHomeView: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(rowAccessibilityLabel(for: record, stop: stop))
+        .accessibilityLabel(rowAccessibilityLabel(for: entry))
         .accessibilityHint("Opens this record to review times or add notes.")
         .accessibilityIdentifier("historyRow-\(index)")
     }
 
     @ViewBuilder
     private var averagePodLife: some View {
-        if let text = averagePodLifeText {
+        if let average = timeline.averageWear {
+            let text = "\(Int((average / 3_600).rounded()))h"
             VStack(spacing: 2) {
                 Text(text)
                     .font(.system(.title3, design: .monospaced).weight(.semibold))
@@ -290,46 +333,24 @@ struct HistoryHomeView: View {
         }
     }
 
-    // MARK: - Record math
+    // MARK: - Formatting
 
-    /// Stop time for a record: the stamped removal, or — for records saved
-    /// before stop tracking existed — the next placement's start. Nil means
-    /// the Pod is still on.
-    private func stopDate(for record: PlacementRecord) -> Date? {
-        if let removedAt = record.removedAt {
-            return removedAt
-        }
-        guard let index = records.firstIndex(where: { $0.id == record.id }), index > 0 else {
-            return nil
-        }
-        return records[index - 1].placedAt
-    }
-
-    private var averagePodLifeText: String? {
-        let durations = records.compactMap { record in
-            stopDate(for: record).map { max(0, $0.timeIntervalSince(record.placedAt)) }
-        }
-        guard !durations.isEmpty else { return nil }
-        let average = durations.reduce(0, +) / Double(durations.count)
-        return "\(Int((average / 3_600).rounded()))h"
-    }
-
-    private func wearRangeText(for record: PlacementRecord, stop: Date?) -> String {
-        let start = record.placedAt.formatted(date: .abbreviated, time: .shortened)
-        guard let stop else { return "On since \(start)" }
+    private func wearRangeText(for entry: PlacementTimeline.Entry) -> String {
+        let start = entry.placedAt.formatted(date: .abbreviated, time: .shortened)
+        guard let stop = entry.stop else { return "On since \(start)" }
         return "\(start) – \(stop.formatted(date: .abbreviated, time: .shortened))"
     }
 
-    private func rowAccessibilityLabel(for record: PlacementRecord, stop: Date?) -> String {
-        var parts = ["\(siteTitle(for: record)), placed \(absoluteDate(record.placedAt))"]
-        if let stop {
+    private func rowAccessibilityLabel(for entry: PlacementTimeline.Entry) -> String {
+        var parts = ["\(siteTitle(for: entry)), placed \(absoluteDate(entry.placedAt))"]
+        if let stop = entry.stop {
             parts.append("removed \(absoluteDate(stop))")
-            parts.append("worn \(PodAgeCounter.spokenText(at: stop, since: record.placedAt))")
+            parts.append("worn \(PodAgeCounter.spokenText(at: stop, since: entry.placedAt))")
         } else {
-            parts.append("on for \(PodAgeCounter.spokenText(at: .now, since: record.placedAt))")
+            parts.append("on for \(PodAgeCounter.spokenText(at: .now, since: entry.placedAt))")
         }
-        if !record.notes.isEmpty {
-            parts.append("note: \(record.notes)")
+        if !entry.record.notes.isEmpty {
+            parts.append("note: \(entry.record.notes)")
         }
         return parts.joined(separator: ", ")
     }
@@ -346,8 +367,8 @@ struct HistoryHomeView: View {
         .foregroundStyle(.secondary)
     }
 
-    private func siteTitle(for record: PlacementRecord) -> String {
-        PumpSite.site(for: record.siteID)?.title ?? record.siteID
+    private func siteTitle(for entry: PlacementTimeline.Entry) -> String {
+        PumpSite.site(for: entry.siteID)?.title ?? entry.siteID
     }
 
     private func absoluteDate(_ date: Date) -> String {
@@ -357,15 +378,13 @@ struct HistoryHomeView: View {
     private func performPendingDelete() {
         guard let record = pendingDelete else { return }
         pendingDelete = nil
-        let wasCurrent = records.first?.id == record.id
-        let previous = records.dropFirst().first
-        modelContext.delete(record)
-        // Deleting the current Pod's record reopens the previous wear, so the
-        // hero card keeps pointing at a Pod that is actually on.
-        if wasCurrent {
-            previous?.removedAt = nil
+        do {
+            // Deletion never reopens another Pod; if this was the current
+            // one, the home shows the explicit "No Pod on" state.
+            try JournalStore(context: modelContext).delete(record)
+        } catch {
+            storeError = error
         }
-        try? modelContext.save()
     }
 }
 
@@ -379,31 +398,47 @@ final class ScrollOffsetBox {
 /// where the gesture started, so a swipe never over- or undershoots the page.
 /// Once inside history, scrolling is free. When the history is shorter than
 /// a screen the snap point falls back to the deepest reachable offset.
-private struct HeroPagingBehavior: ScrollTargetBehavior {
+struct HeroPagingBehavior: ScrollTargetBehavior {
     let currentOffset: ScrollOffsetBox
 
     /// Projected travel past which a gesture counts as a page flick rather
     /// than a settle-back drag.
-    private static let flickTravel: CGFloat = 80
+    static let flickTravel: CGFloat = 80
 
-    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
-        let pageHeight = context.containerSize.height
-        let maxOffset = max(0, context.contentSize.height - pageHeight)
-        let boundary = min(pageHeight, maxOffset)
-        guard boundary > 0 else { return }
-        let from = currentOffset.value
+    /// Pure snap decision, separated for unit testing. Returns the offset to
+    /// settle at, or nil to leave the scroll free (deep inside history).
+    static func snapOffset(
+        proposed: CGFloat,
+        from: CGFloat,
+        containerHeight: CGFloat,
+        contentHeight: CGFloat
+    ) -> CGFloat? {
+        let maxOffset = max(0, contentHeight - containerHeight)
+        let boundary = min(containerHeight, maxOffset)
+        guard boundary > 0 else { return nil }
 
         if from < boundary - 1 {
             // Leaving the hero: land on the history page top on a real swipe
             // (projected travel) or a drag past halfway; otherwise settle back.
-            let projectedTravel = target.rect.minY - from
-            let pastHalf = target.rect.minY > boundary / 2
-            target.rect.origin.y = (pastHalf || projectedTravel > Self.flickTravel) ? boundary : 0
-        } else if target.rect.minY < boundary - 1 {
+            let pastHalf = proposed > boundary / 2
+            return (pastHalf || proposed - from > flickTravel) ? boundary : 0
+        }
+        if proposed < boundary - 1 {
             // Heading back down out of history: hero, or hold the page top.
-            let projectedTravel = from - target.rect.minY
-            let pastHalf = target.rect.minY < boundary / 2
-            target.rect.origin.y = (pastHalf || projectedTravel > Self.flickTravel) ? 0 : boundary
+            let pastHalf = proposed < boundary / 2
+            return (pastHalf || from - proposed > flickTravel) ? 0 : boundary
+        }
+        return nil
+    }
+
+    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
+        if let snapped = Self.snapOffset(
+            proposed: target.rect.minY,
+            from: currentOffset.value,
+            containerHeight: context.containerSize.height,
+            contentHeight: context.contentSize.height
+        ) {
+            target.rect.origin.y = snapped
         }
     }
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="999" viewBox="0 0 400 999" fill="none">
+  <path id="abdomen-anatomical-left"
+        fill="#FF3B30" fill-opacity="0.18" stroke="#FF3B30" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"
+        d="M 255 339 C 261 343 264 353 265 365 C 267 380 268 391 274 405 C 279 416 282 427 279 437 C 270 445 256 447 243 442 C 229 438 222 429 220 415 C 218 396 221 376 228 357 C 235 343 246 334 255 339 Z"/>
+</svg>

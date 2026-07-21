@@ -23,7 +23,9 @@ struct BodyMapView: View {
                 VStack(spacing: 24) {
                     Picker("Silhouette", selection: $bodyTypeRaw) {
                         ForEach(BodyType.allCases) { type in
-                            Text(type.displayName).tag(type.rawValue)
+                            Text(type.displayName)
+                                .accessibilityLabel("Silhouette \(type.displayName)")
+                                .tag(type.rawValue)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -72,13 +74,17 @@ struct BodyMapView: View {
 
     // MARK: Heat model
 
-    private var lastUsedBySite: [String: Date] {
-        Dictionary(grouping: records, by: \.siteID)
-            .compactMapValues { $0.map(\.placedAt).max() }
+    private var timeline: PlacementTimeline {
+        PlacementTimeline(records: records)
     }
 
+    private var lastUsedBySite: [String: Date] {
+        timeline.lastUsedBySite
+    }
+
+    /// The Pod badge marks only a Pod that is actually on right now.
     private var currentSiteID: String? {
-        records.first?.siteID
+        timeline.current?.siteID
     }
 
     private var recency: SiteRecencyModel {
@@ -191,9 +197,11 @@ struct BodyMapView: View {
                     legendRow(label: "Very recent (last 3 sites)") { swatch(fill: AppTheme.stale) }
                     legendRow(label: "Recent") { swatch(fill: AppTheme.recent) }
                     legendRow(label: "Relatively recent") { swatch(fill: AppTheme.aging) }
-                    legendRow(label: "Rested or never used") { swatch(fill: AppTheme.restedShade) }
+                    legendRow(label: "Least recently used, or never") { swatch(fill: AppTheme.restedShade) }
 
-                    Text("Fill shows how recently each site was used — neutral gray means rested and ready. The Pod marks the site in use now.")
+                    // Honest about what the colors mean: usage order, not a
+                    // judgment of skin condition or tissue readiness.
+                    Text("Colors reflect usage order only — gray sites are simply the ones used least recently, not a guarantee the skin has recovered. The Pod marks the site in use now.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .padding(.top, 8)

@@ -40,6 +40,9 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
+        # Loop registers the loop:// scheme; declaring it lets the handoff
+        # check canOpenURL and open Loop after a placement is confirmed.
+        LSApplicationQueriesSchemes: [loop]
 
   InsulinPumpSiteJournalTests:
     type: bundle.unit-test
@@ -77,4 +80,19 @@ schemes:
       gatherCoverageData: true
       targets:
         - InsulinPumpSiteJournalTests
-        - InsulinPumpSiteJournalUITests
+        # The screenshot walk is visual QA, not a functional test — it runs
+        # in the VisualWalk scheme so default test runs stay fast.
+        - name: InsulinPumpSiteJournalUITests
+          skippedTests: [ScreenshotWalkUITests]
+
+  VisualWalk:
+    build:
+      targets:
+        InsulinPumpSiteJournal: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - name: InsulinPumpSiteJournalUITests
+          selectedTests: [ScreenshotWalkUITests]

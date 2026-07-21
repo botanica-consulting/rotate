@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="399" height="1000" viewBox="0 0 399 1000" fill="none">
+  <path id="back-upper-arm-anatomical-left"
+        fill="#FF3B30" fill-opacity="0.18" stroke="#FF3B30" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"
+        d="M 308 230 C 312 240 313 255 313 270 C 313 284 315 297 318 309 C 315 319 309 323 301 320 C 294 308 290 294 287 278 C 285 260 287 244 291 232 C 296 226 303 227 308 230 Z"/>
+</svg>

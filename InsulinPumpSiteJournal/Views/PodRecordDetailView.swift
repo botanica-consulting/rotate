@@ -15,6 +15,8 @@ struct PodRecordDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @State private var confirmingDelete = false
+    @State private var saveError: Error?
 
     var body: some View {
         NavigationStack {
@@ -58,9 +60,8 @@ struct PodRecordDetailView: View {
                 }
 
                 Section {
-                    Button("Delete record", role: .destructive) {
-                        onDelete()
-                        dismiss()
+                    Button("Delete record…", role: .destructive) {
+                        confirmingDelete = true
                     }
                     .accessibilityIdentifier("deleteRecordButton")
                 }
@@ -72,17 +73,53 @@ struct PodRecordDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
-                        dismiss()
+                        saveAndDismiss()
                     }
                     .accessibilityIdentifier("closeRecordButton")
                 }
             }
+            .confirmationDialog(
+                "Delete this record?",
+                isPresented: $confirmingDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    onDelete()
+                    dismiss()
+                }
+                .accessibilityIdentifier("confirmDeleteRecordButton")
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently removes the \(siteTitle) placement and its notes.")
+            }
+            .alert(
+                "Couldn't save your note",
+                isPresented: Binding(
+                    get: { saveError != nil },
+                    set: { if !$0 { saveError = nil } }
+                ),
+                presenting: saveError
+            ) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { error in
+                Text(error.localizedDescription)
+            }
             .onDisappear {
+                // Fallback for swipe-dismiss; Done already saved (or alerted).
                 try? modelContext.save()
             }
         }
         .presentationDetents([.medium, .large])
         .fontDesign(.rounded)
+    }
+
+    private func saveAndDismiss() {
+        do {
+            try JournalStore(context: modelContext).save()
+            dismiss()
+        } catch {
+            saveError = error
+        }
     }
 
     private var site: PumpSite? {
