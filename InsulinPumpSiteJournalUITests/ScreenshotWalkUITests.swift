@@ -8,6 +8,11 @@ final class ScreenshotWalkUITests: XCTestCase {
     func testScreenshotWalk() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--uitest-reset"]
+        // Optional Dynamic Type override for visual QA runs, e.g.
+        // TEST_RUNNER_WALK_CONTENT_SIZE=UICTContentSizeCategoryAccessibilityExtraExtraLarge
+        if let contentSize = ProcessInfo.processInfo.environment["WALK_CONTENT_SIZE"] {
+            app.launchArguments += ["-UIPreferredContentSizeCategoryName", contentSize]
+        }
         app.launch()
 
         // Host-side `simctl io screenshot` polling captures the frames;

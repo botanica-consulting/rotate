@@ -63,14 +63,16 @@ struct SiteSuggestionCard: View {
         }
         .modifier(SelectionGlass(isSelected: isSelected, namespace: namespace))
         .scaleEffect(isSelected && !reduceMotion ? 1.03 : 1)
-        .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("suggestionCard-\(index)")
     }
 
     private var accessibilityDescription: String {
-        var parts = [site.title]
+        var parts = [
+            site.title,
+            site.bodyView == .front ? "front body view" : "rear body view",
+        ]
         if let lastUsed {
             parts.append("last used \(lastUsed.formatted(date: .abbreviated, time: .omitted))")
         } else {

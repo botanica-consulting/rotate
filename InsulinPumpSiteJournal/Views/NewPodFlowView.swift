@@ -9,6 +9,7 @@ struct NewPodFlowView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var suggestions: [PumpSite] = []
     @State private var lastUsedBySite: [String: Date] = [:]
@@ -38,7 +39,13 @@ struct NewPodFlowView: View {
                 }
             }
             .background(AppBackground())
-            .navigationTitle(savedSite == nil ? "Choose your next site" : "")
+            // The full title ellipsizes at accessibility text sizes; fall back
+            // to a shorter one there instead of truncating.
+            .navigationTitle(
+                savedSite != nil ? ""
+                    : dynamicTypeSize.isAccessibilitySize ? "Next site"
+                    : "Choose your next site"
+            )
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 if savedSite == nil {
