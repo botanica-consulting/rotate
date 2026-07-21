@@ -1,0 +1,80 @@
+name: InsulinPumpSiteJournal
+options:
+  bundleIdPrefix: io.github.0xa10
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: "YES"
+
+targets:
+  InsulinPumpSiteJournal:
+    type: application
+    platform: iOS
+    sources:
+      - path: InsulinPumpSiteJournal
+        excludes: ["*.entitlements"]
+    # To enable iCloud sync, uncomment this block, regenerate the project, and
+    # flip `cloudKitDatabase` in InsulinPumpSiteJournalApp.swift to the private
+    # database (see the comment there). Requires a team with iCloud capability.
+    # entitlements:
+    #   path: InsulinPumpSiteJournal/InsulinPumpSiteJournal.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xa10.InsulinPumpSiteJournal
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SWIFT_EMIT_LOC_STRINGS: "YES"
+        ENABLE_PREVIEWS: "YES"
+    info:
+      path: InsulinPumpSiteJournal/Info.plist
+      properties:
+        CFBundleDisplayName: Pump Sites
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+
+  InsulinPumpSiteJournalTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [InsulinPumpSiteJournalTests]
+    dependencies:
+      - target: InsulinPumpSiteJournal
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xa10.InsulinPumpSiteJournalTests
+        GENERATE_INFOPLIST_FILE: "YES"
+
+  InsulinPumpSiteJournalUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [InsulinPumpSiteJournalUITests]
+    dependencies:
+      - target: InsulinPumpSiteJournal
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xa10.InsulinPumpSiteJournalUITests
+        GENERATE_INFOPLIST_FILE: "YES"
+        # XCTestCase overrides nonisolated inits; MainActor default isolation breaks the subclass.
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+
+schemes:
+  InsulinPumpSiteJournal:
+    build:
+      targets:
+        InsulinPumpSiteJournal: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - InsulinPumpSiteJournalTests
+        - InsulinPumpSiteJournalUITests
