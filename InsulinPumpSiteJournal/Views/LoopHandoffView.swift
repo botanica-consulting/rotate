@@ -2,25 +2,28 @@ import SwiftUI
 import UIKit
 
 /// Shown inside the new-Pod flow after choosing a site: placement
-/// instructions, then the confirm-and-hand-off-to-Loop step. Nothing is
-/// saved until the primary button — confirming records the placement and,
-/// when Loop is installed, opens it (Loop registers the `loop://` scheme;
-/// it has no pod-setup deep link, so this lands on Loop's main screen).
+/// instructions, then the confirm-and-hand-off step. Nothing is saved until
+/// the primary button — confirming records the placement and continues in
+/// the companion app chosen in Settings, when it's installed.
 struct LoopHandoffView: View {
     let site: PumpSite
     let onConfirm: () -> Void
     let onChooseAnother: () -> Void
 
     @AppStorage(MeasurementUnit.storageKey) private var unitRaw = MeasurementUnit.system.rawValue
+    @AppStorage(CompanionApp.storageKey) private var companionRaw = CompanionApp.loop.rawValue
 
     private var unit: MeasurementUnit {
         MeasurementUnit(rawValue: unitRaw) ?? .system
     }
 
-    static let loopURL = URL(string: "loop://")!
+    private var companion: CompanionApp {
+        CompanionApp(rawValue: companionRaw) ?? .loop
+    }
 
-    private var canOpenLoop: Bool {
-        UIApplication.shared.canOpenURL(Self.loopURL)
+    private var canOpenCompanion: Bool {
+        guard let url = companion.launchURL else { return false }
+        return UIApplication.shared.canOpenURL(url)
     }
 
     var body: some View {
@@ -63,7 +66,9 @@ struct LoopHandoffView: View {
                 Button {
                     onConfirm()
                 } label: {
-                    Text(canOpenLoop ? "Pod is on — Open Loop" : "Pod is on — Save")
+                    Text(canOpenCompanion
+                        ? "Continue in \(companion.displayName)"
+                        : "Pod is on — Save")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glassProminent)
@@ -81,8 +86,8 @@ struct LoopHandoffView: View {
                 .controlSize(.large)
                 .accessibilityIdentifier("chooseAnotherSiteButton")
 
-                Text(canOpenLoop
-                    ? "Confirming saves the placement and opens Loop."
+                Text(canOpenCompanion
+                    ? "Continuing saves the placement and opens \(companion.displayName)."
                     : "Confirming saves the placement. Then open Loop to pair.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

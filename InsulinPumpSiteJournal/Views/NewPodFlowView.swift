@@ -23,6 +23,8 @@ struct NewPodFlowView: View {
     @State private var savedCount = 0
     @State private var saveError: Error?
 
+    @AppStorage(CompanionApp.storageKey) private var companionRaw = CompanionApp.loop.rawValue
+
     /// One column at accessibility text sizes so card content never crams.
     private var columns: [GridItem] {
         let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
@@ -205,7 +207,9 @@ struct NewPodFlowView: View {
         do {
             try JournalStore(context: modelContext).startPlacement(siteID: site.id)
             savedCount += 1
-            openURL(LoopHandoffView.loopURL)
+            if let url = CompanionApp(rawValue: companionRaw)?.launchURL {
+                openURL(url)
+            }
             dismiss()
         } catch {
             saveError = error
