@@ -28,32 +28,32 @@ struct SiteRecencyModelTests {
     }
 
     @Test func neverUsedSitesAreBaseTier() {
-        let model = SiteRecencyModel(history: [record("thigh-left", daysAgo: 1)])
-        #expect(model.tier(for: "thigh-left") == .veryRecent)
-        #expect(model.tier(for: "arm-upper-left") == .base)
+        let model = SiteRecencyModel(history: [record("front-thigh-left", daysAgo: 1)])
+        #expect(model.tier(for: "front-thigh-left") == .veryRecent)
+        #expect(model.tier(for: "back-upper-arm-left") == .base)
     }
 
     @Test func veryRecentSetContainsAtMostLastThreeUsedSites() {
         let history = [
-            record("thigh-left", daysAgo: 1),
-            record("arm-upper-left", daysAgo: 2),
-            record("abdomen-upper-left", daysAgo: 3),
+            record("front-thigh-left", daysAgo: 1),
+            record("back-upper-arm-left", daysAgo: 2),
+            record("abdomen-left", daysAgo: 3),
             record("lower-back-left", daysAgo: 4),
         ]
         let model = SiteRecencyModel(history: history)
-        #expect(model.veryRecentSiteIDs == ["thigh-left", "arm-upper-left", "abdomen-upper-left"])
+        #expect(model.veryRecentSiteIDs == ["front-thigh-left", "back-upper-arm-left", "abdomen-left"])
 
-        let sparse = SiteRecencyModel(history: [record("thigh-left", daysAgo: 1)])
-        #expect(sparse.veryRecentSiteIDs == ["thigh-left"])
+        let sparse = SiteRecencyModel(history: [record("front-thigh-left", daysAgo: 1)])
+        #expect(sparse.veryRecentSiteIDs == ["front-thigh-left"])
     }
 
     @Test func repeatedPlacementsUseLatestDate() {
         let history = [
-            record("thigh-left", daysAgo: 40),
-            record("thigh-left", daysAgo: 1),
-            record("arm-upper-left", daysAgo: 2),
+            record("front-thigh-left", daysAgo: 40),
+            record("front-thigh-left", daysAgo: 1),
+            record("back-upper-arm-left", daysAgo: 2),
         ]
         let model = SiteRecencyModel(history: history)
-        #expect(model.veryRecentSiteIDs.contains("thigh-left"))
+        #expect(model.veryRecentSiteIDs.contains("front-thigh-left"))
     }
 }

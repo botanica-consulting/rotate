@@ -29,11 +29,11 @@ final class CriticalPathUITests: XCTestCase {
         app.buttons["continueInLoopButton"].tap()
 
         // See the new record in history. With a clean store, the first
-        // suggestion is the first starter site: upper-left abdomen.
+        // suggestion is the first starter site: left abdomen.
         let newRow = app.descendants(matching: .any)["historyRow-0"]
         XCTAssertTrue(newRow.waitForExistence(timeout: 5))
         XCTAssertTrue(
-            app.staticTexts["Upper-left abdomen"].firstMatch.waitForExistence(timeout: 5)
+            app.staticTexts["Left abdomen"].firstMatch.waitForExistence(timeout: 5)
         )
     }
 }

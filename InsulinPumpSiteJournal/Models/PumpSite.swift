@@ -25,76 +25,62 @@ struct PumpSite: Identifiable, Hashable {
 
 extension PumpSite {
     /// The compile-time site catalog. Order is significant: it is the stable
-    /// tie-breaker used by `SiteSuggestionEngine`.
+    /// tie-breaker used by `SiteSuggestionEngine`. Site IDs match the
+    /// mounting-area asset names (see `SiteAreaCatalog`).
     ///
-    /// All left/right names are the WEARER's left/right. On the front
-    /// silhouette the wearer's left renders on the viewer's right (mirror
-    /// image); on the rear silhouette wearer-left and viewer-left coincide.
-    /// `markerPosition` values are normalized to the silhouette's unit rect
-    /// and encode that mirroring.
+    /// All left/right names are the WEARER's left/right. On the front view
+    /// the wearer's left renders on the viewer's right (mirror image); on the
+    /// rear view (standard posterior anatomy) wearer-left and viewer-left
+    /// coincide. `markerPosition` is the normalized centroid of the site's
+    /// mounting area — the dot-marker fallback for body types without area
+    /// assets, and the card zoom anchor.
     static let catalog: [PumpSite] = [
         PumpSite(
-            id: "abdomen-upper-left",
-            title: "Upper-left abdomen",
-            shortTitle: "Upper-Left Abdomen",
+            id: "abdomen-left",
+            title: "Left abdomen",
+            shortTitle: "Left Abdomen",
             bodyView: .front,
-            markerPosition: CGPoint(x: 0.60, y: 0.37),
+            markerPosition: CGPoint(x: 0.625, y: 0.391),
             region: .abdomen
         ),
         PumpSite(
-            id: "abdomen-upper-right",
-            title: "Upper-right abdomen",
-            shortTitle: "Upper-Right Abdomen",
+            id: "abdomen-right",
+            title: "Right abdomen",
+            shortTitle: "Right Abdomen",
             bodyView: .front,
-            markerPosition: CGPoint(x: 0.40, y: 0.37),
+            markerPosition: CGPoint(x: 0.375, y: 0.391),
             region: .abdomen
         ),
         PumpSite(
-            id: "abdomen-lower-left",
-            title: "Lower-left abdomen",
-            shortTitle: "Lower-Left Abdomen",
+            id: "front-thigh-left",
+            title: "Left front thigh",
+            shortTitle: "Left Front Thigh",
             bodyView: .front,
-            markerPosition: CGPoint(x: 0.585, y: 0.46),
-            region: .abdomen
-        ),
-        PumpSite(
-            id: "abdomen-lower-right",
-            title: "Lower-right abdomen",
-            shortTitle: "Lower-Right Abdomen",
-            bodyView: .front,
-            markerPosition: CGPoint(x: 0.415, y: 0.46),
-            region: .abdomen
-        ),
-        PumpSite(
-            id: "thigh-left",
-            title: "Left thigh",
-            shortTitle: "Left Thigh",
-            bodyView: .front,
-            markerPosition: CGPoint(x: 0.61, y: 0.60),
+            markerPosition: CGPoint(x: 0.660, y: 0.587),
             region: .thigh
         ),
         PumpSite(
-            id: "thigh-right",
-            title: "Right thigh",
-            shortTitle: "Right Thigh",
+            id: "front-thigh-right",
+            title: "Right front thigh",
+            shortTitle: "Right Front Thigh",
             bodyView: .front,
-            markerPosition: CGPoint(x: 0.39, y: 0.60),
+            markerPosition: CGPoint(x: 0.340, y: 0.587),
             region: .thigh
         ),
         PumpSite(
-            id: "arm-upper-left",
+            id: "back-upper-arm-left",
             title: "Left upper arm",
             shortTitle: "Left Arm",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.26, y: 0.28),
+            markerPosition: CGPoint(x: 0.244, y: 0.275),
             region: .arm
         ),
         PumpSite(
-            id: "arm-upper-right",
+            id: "back-upper-arm-right",
             title: "Right upper arm",
             shortTitle: "Right Arm",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.74, y: 0.28),
+            markerPosition: CGPoint(x: 0.756, y: 0.275),
             region: .arm
         ),
         PumpSite(
@@ -102,7 +88,7 @@ extension PumpSite {
             title: "Left lower back",
             shortTitle: "Left Lower Back",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.41, y: 0.42),
+            markerPosition: CGPoint(x: 0.396, y: 0.393),
             region: .lowerBack
         ),
         PumpSite(
@@ -110,23 +96,39 @@ extension PumpSite {
             title: "Right lower back",
             shortTitle: "Right Lower Back",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.59, y: 0.42),
+            markerPosition: CGPoint(x: 0.604, y: 0.393),
             region: .lowerBack
         ),
         PumpSite(
-            id: "buttock-upper-left",
+            id: "outer-thigh-left",
+            title: "Left outer thigh",
+            shortTitle: "Left Outer Thigh",
+            bodyView: .rear,
+            markerPosition: CGPoint(x: 0.335, y: 0.588),
+            region: .thigh
+        ),
+        PumpSite(
+            id: "outer-thigh-right",
+            title: "Right outer thigh",
+            shortTitle: "Right Outer Thigh",
+            bodyView: .rear,
+            markerPosition: CGPoint(x: 0.665, y: 0.588),
+            region: .thigh
+        ),
+        PumpSite(
+            id: "upper-buttock-left",
             title: "Left upper buttock",
             shortTitle: "Left Buttock",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.40, y: 0.51),
+            markerPosition: CGPoint(x: 0.337, y: 0.475),
             region: .upperButtock
         ),
         PumpSite(
-            id: "buttock-upper-right",
+            id: "upper-buttock-right",
             title: "Right upper buttock",
             shortTitle: "Right Buttock",
             bodyView: .rear,
-            markerPosition: CGPoint(x: 0.60, y: 0.51),
+            markerPosition: CGPoint(x: 0.663, y: 0.475),
             region: .upperButtock
         ),
     ]
@@ -134,9 +136,9 @@ extension PumpSite {
     /// Starter suggestions for an empty history: four sites across four
     /// distinct regions, in a fixed order.
     static let starterSiteIDs: [String] = [
-        "abdomen-upper-left",
-        "arm-upper-right",
-        "thigh-left",
+        "abdomen-left",
+        "back-upper-arm-right",
+        "front-thigh-left",
         "lower-back-right",
     ]
 
@@ -144,7 +146,22 @@ extension PumpSite {
         uniqueKeysWithValues: catalog.map { ($0.id, $0) }
     )
 
+    /// History written before the region remodel used quadrant-style IDs;
+    /// map them onto the nearest current site so old records stay readable.
+    private static let legacyIDMap: [String: String] = [
+        "abdomen-upper-left": "abdomen-left",
+        "abdomen-lower-left": "abdomen-left",
+        "abdomen-upper-right": "abdomen-right",
+        "abdomen-lower-right": "abdomen-right",
+        "thigh-left": "front-thigh-left",
+        "thigh-right": "front-thigh-right",
+        "arm-upper-left": "back-upper-arm-left",
+        "arm-upper-right": "back-upper-arm-right",
+        "buttock-upper-left": "upper-buttock-left",
+        "buttock-upper-right": "upper-buttock-right",
+    ]
+
     static func site(for id: String) -> PumpSite? {
-        byID[id]
+        byID[id] ?? legacyIDMap[id].flatMap { byID[$0] }
     }
 }

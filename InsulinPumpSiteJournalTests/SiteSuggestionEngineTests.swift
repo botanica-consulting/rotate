@@ -24,21 +24,21 @@ struct SiteSuggestionEngineTests {
 
     @Test func excludesImmediatelyPreviousSite() {
         let history = [
-            record("thigh-left", daysAgo: 0),
-            record("abdomen-upper-left", daysAgo: 3),
+            record("front-thigh-left", daysAgo: 0),
+            record("abdomen-left", daysAgo: 3),
         ]
 
         let result = engine.suggestions(from: catalog, history: history)
 
-        #expect(!result.map(\.id).contains("thigh-left"))
+        #expect(!result.map(\.id).contains("front-thigh-left"))
         #expect(result.count == 4)
     }
 
     @Test func neverUsedSitesPrecedeUsedSites() {
         let history = [
-            record("abdomen-upper-left", daysAgo: 1),
-            record("thigh-left", daysAgo: 5),
-            record("arm-upper-left", daysAgo: 9),
+            record("abdomen-left", daysAgo: 1),
+            record("front-thigh-left", daysAgo: 5),
+            record("back-upper-arm-left", daysAgo: 9),
         ]
         let usedIDs = Set(history.map(\.siteID))
 
@@ -62,24 +62,24 @@ struct SiteSuggestionEngineTests {
         // Oldest-first with region diversity: one site per region, walking
         // from the least recently used end of the catalog.
         #expect(result.map(\.id) == [
-            "buttock-upper-right",
+            "upper-buttock-right",
+            "outer-thigh-right",
             "lower-back-right",
-            "arm-upper-right",
-            "thigh-right",
+            "back-upper-arm-right",
         ])
     }
 
     @Test func suggestionsAreRegionDiverseWherePossible() {
-        // Naive LRU would return the four abdomen sites: they are by far the
+        // Naive LRU would return the four thigh sites: they are by far the
         // oldest. Region diversity must spread the result instead.
         var history = [
-            record("abdomen-upper-left", daysAgo: 100),
-            record("abdomen-upper-right", daysAgo: 99),
-            record("abdomen-lower-left", daysAgo: 98),
-            record("abdomen-lower-right", daysAgo: 97),
+            record("front-thigh-left", daysAgo: 100),
+            record("front-thigh-right", daysAgo: 99),
+            record("outer-thigh-left", daysAgo: 98),
+            record("outer-thigh-right", daysAgo: 97),
         ]
-        let nonAbdomen = catalog.filter { $0.region != .abdomen }
-        history += nonAbdomen.enumerated().map { index, site in
+        let nonThigh = catalog.filter { $0.region != .thigh }
+        history += nonThigh.enumerated().map { index, site in
             record(site.id, daysAgo: Double(index + 1))
         }
 
@@ -87,14 +87,14 @@ struct SiteSuggestionEngineTests {
 
         #expect(result.count == 4)
         #expect(Set(result.map(\.region)).count == 4)
-        #expect(result.contains { $0.region == .abdomen })
+        #expect(result.contains { $0.region == .thigh })
     }
 
     @Test func outputIsDeterministic() {
         let history = [
-            record("abdomen-upper-left", daysAgo: 2),
-            record("thigh-right", daysAgo: 7),
-            record("arm-upper-left", daysAgo: 12),
+            record("abdomen-left", daysAgo: 2),
+            record("front-thigh-right", daysAgo: 7),
+            record("back-upper-arm-left", daysAgo: 12),
         ]
 
         let first = engine.suggestions(from: catalog, history: history)
@@ -104,8 +104,8 @@ struct SiteSuggestionEngineTests {
     }
 
     @Test func excludedSitesNeverAppear() {
-        let history = [record("abdomen-upper-left", daysAgo: 2)]
-        let excluded: Set<String> = ["thigh-left", "arm-upper-right", "lower-back-left"]
+        let history = [record("abdomen-left", daysAgo: 2)]
+        let excluded: Set<String> = ["front-thigh-left", "back-upper-arm-right", "lower-back-left"]
 
         let result = engine.suggestions(from: catalog, history: history, excluding: excluded)
 
@@ -126,11 +126,11 @@ struct SiteSuggestionEngineTests {
     @Test func resultContainsNoDuplicates() {
         // The same site placed repeatedly must not produce duplicates.
         let history = [
-            record("abdomen-upper-left", daysAgo: 1),
-            record("abdomen-upper-left", daysAgo: 10),
-            record("abdomen-upper-left", daysAgo: 20),
-            record("thigh-left", daysAgo: 4),
-            record("thigh-left", daysAgo: 15),
+            record("abdomen-left", daysAgo: 1),
+            record("abdomen-left", daysAgo: 10),
+            record("abdomen-left", daysAgo: 20),
+            record("front-thigh-left", daysAgo: 4),
+            record("front-thigh-left", daysAgo: 15),
         ]
 
         let result = engine.suggestions(from: catalog, history: history)

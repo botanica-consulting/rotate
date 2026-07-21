@@ -93,11 +93,15 @@ struct BodyMapView: View {
                 .overlay {
                     GeometryReader { geometry in
                         ForEach(PumpSite.catalog.filter { $0.bodyView == bodyView }) { site in
-                            marker(for: site)
-                                .position(
-                                    x: geometry.size.width * site.markerPosition.x,
-                                    y: geometry.size.height * site.markerPosition.y
-                                )
+                            if let area = SiteAreaCatalog.area(for: site.id, bodyType: bodyType) {
+                                areaOverlay(for: site, area: area, in: geometry)
+                            } else {
+                                marker(for: site)
+                                    .position(
+                                        x: geometry.size.width * site.markerPosition.x,
+                                        y: geometry.size.height * site.markerPosition.y
+                                    )
+                            }
                         }
                     }
                 }
@@ -106,6 +110,39 @@ struct BodyMapView: View {
                 .font(.caption.smallCaps())
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// The anatomical mounting area, recency-colored; a green line delineates
+    /// the recommended sites and the current site keeps its primary ring.
+    /// VoiceOver focuses a 44pt element at the area's centroid rather than
+    /// the whole figure.
+    @ViewBuilder
+    private func areaOverlay(for site: PumpSite, area: SiteArea, in geometry: GeometryProxy) -> some View {
+        let tier = recency.tier(for: site.id)
+        let isCurrent = site.id == currentSiteID
+        let isRecommended = recommendedSiteIDs.contains(site.id)
+        let shape = SiteAreaShape(area: area)
+        let strokeColor: Color = isCurrent ? .primary
+            : isRecommended ? .green
+            : tier == .base ? .secondary
+            : AppTheme.color(for: tier)
+
+        shape
+            .fill(tier == .base ? Color.clear : AppTheme.color(for: tier).opacity(0.4))
+            .overlay(shape.stroke(strokeColor, lineWidth: isCurrent || isRecommended ? 2.5 : 1.5))
+            .accessibilityHidden(true)
+            .overlay {
+                Color.clear
+                    .frame(width: 44, height: 44)
+                    .position(
+                        x: geometry.size.width * site.markerPosition.x,
+                        y: geometry.size.height * site.markerPosition.y
+                    )
+                    .accessibilityElement()
+                    .accessibilityLabel(
+                        accessibilityDescription(for: site, isCurrent: isCurrent, isRecommended: isRecommended)
+                    )
+            }
     }
 
     private func marker(for site: PumpSite) -> some View {

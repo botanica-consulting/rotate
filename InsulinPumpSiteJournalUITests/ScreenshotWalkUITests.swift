@@ -16,6 +16,9 @@ final class ScreenshotWalkUITests: XCTestCase {
         if ProcessInfo.processInfo.environment["WALK_SEED"] == "1" {
             app.launchArguments.append("--uitest-seed")
         }
+        if let bodyType = ProcessInfo.processInfo.environment["WALK_BODY_TYPE"] {
+            app.launchArguments += ["-bodyType", bodyType]
+        }
         app.launch()
 
         // Host-side `simctl io screenshot` polling captures the frames;

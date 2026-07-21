@@ -21,14 +21,22 @@ struct BodyThumbnail: View {
             .scaledToFit()
             .overlay {
                 GeometryReader { geometry in
-                    Circle()
-                        .fill(markerColor)
-                        .overlay(Circle().stroke(.background, lineWidth: 2))
-                        .frame(width: 18, height: 18)
-                        .position(
-                            x: geometry.size.width * site.markerPosition.x,
-                            y: geometry.size.height * site.markerPosition.y
-                        )
+                    if let area = SiteAreaCatalog.area(for: site.id, bodyType: bodyType) {
+                        let shape = SiteAreaShape(area: area)
+                        shape
+                            .fill(markerColor.opacity(0.4))
+                            .overlay(shape.stroke(markerColor, lineWidth: 2))
+                    } else {
+                        // No area asset for this body type yet: dot fallback.
+                        Circle()
+                            .fill(markerColor)
+                            .overlay(Circle().stroke(.background, lineWidth: 2))
+                            .frame(width: 18, height: 18)
+                            .position(
+                                x: geometry.size.width * site.markerPosition.x,
+                                y: geometry.size.height * site.markerPosition.y
+                            )
+                    }
                 }
             }
             .scaleEffect(

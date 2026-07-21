@@ -19,7 +19,7 @@ struct PersistenceTests {
                 configurations: configuration
             )
             let context = ModelContext(container)
-            let record = PlacementRecord(siteID: "thigh-left")
+            let record = PlacementRecord(siteID: "front-thigh-left")
             recordID = record.id
             context.insert(record)
             try context.save()
@@ -35,7 +35,7 @@ struct PersistenceTests {
             let fetched = try context.fetch(FetchDescriptor<PlacementRecord>())
             #expect(fetched.count == 1)
             #expect(fetched.first?.id == recordID)
-            #expect(fetched.first?.siteID == "thigh-left")
+            #expect(fetched.first?.siteID == "front-thigh-left")
 
             // Delete and save.
             for record in fetched {
