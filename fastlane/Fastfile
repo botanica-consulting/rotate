@@ -25,6 +25,81 @@ PROJECT_PATH = "#{GITHUB_WORKSPACE}/InsulinPumpSiteJournal.xcodeproj"
 APP_TARGET = "InsulinPumpSiteJournal"
 
 platform :ios do
+  # ---------------------------------------------------------------------
+  # LOCAL flow — build on this Mac and upload to TestFlight with Xcode
+  # automatic (cloud) signing. No match, no Match-Secrets, no GitHub.
+  # Needs: TEAMID, FASTLANE_ISSUER_ID, FASTLANE_KEY_ID, FASTLANE_KEY_PATH
+  # (see ~/.config/rotate-release.env). Uses the repo's own bundle id.
+  # ---------------------------------------------------------------------
+  LOCAL_BUNDLE_ID = "io.github.0xa10.InsulinPumpSiteJournal"
+  LOCAL_PROJECT = File.expand_path("../InsulinPumpSiteJournal.xcodeproj", __dir__)
+
+  desc "Register the app's bundle id with Apple (local flow, one-time)"
+  lane :register_app do
+    app_store_connect_api_key(
+      key_id: ENV["FASTLANE_KEY_ID"],
+      issuer_id: ENV["FASTLANE_ISSUER_ID"],
+      key_filepath: File.expand_path(ENV["FASTLANE_KEY_PATH"])
+    )
+    existing = Spaceship::ConnectAPI::BundleId.find(LOCAL_BUNDLE_ID)
+    if existing
+      UI.success("Bundle id #{LOCAL_BUNDLE_ID} already registered")
+    else
+      Spaceship::ConnectAPI::BundleId.create(name: "Rotate", identifier: LOCAL_BUNDLE_ID, platform: "IOS")
+      UI.success("Registered bundle id #{LOCAL_BUNDLE_ID}")
+    end
+  end
+
+  desc "Local build + upload to TestFlight (automatic signing)"
+  lane :beta do
+    key_path = File.expand_path(ENV["FASTLANE_KEY_PATH"])
+    api_key = app_store_connect_api_key(
+      key_id: ENV["FASTLANE_KEY_ID"],
+      issuer_id: ENV["FASTLANE_ISSUER_ID"],
+      key_filepath: key_path
+    )
+
+    update_project_team(path: LOCAL_PROJECT, teamid: ENV["TEAMID"])
+
+    # Monotonic build number without needing to query TestFlight
+    increment_build_number(
+      xcodeproj: LOCAL_PROJECT,
+      build_number: Time.now.utc.strftime("%Y%m%d%H%M")
+    )
+
+    # Cloud-signing auth flags let xcodebuild create/refresh certs and
+    # profiles headlessly, same as pressing Archive in Xcode.
+    auth_args = "-allowProvisioningUpdates" \
+      " -authenticationKeyPath #{key_path}" \
+      " -authenticationKeyID #{ENV['FASTLANE_KEY_ID']}" \
+      " -authenticationKeyIssuerID #{ENV['FASTLANE_ISSUER_ID']}"
+
+    gym(
+      project: LOCAL_PROJECT,
+      scheme: "InsulinPumpSiteJournal",
+      configuration: "Release",
+      destination: "generic/platform=iOS",
+      export_method: "app-store",
+      export_options: { signingStyle: "automatic", teamID: ENV["TEAMID"] },
+      xcargs: auth_args,
+      export_xcargs: auth_args,
+      output_directory: File.expand_path("..", __dir__),
+      output_name: "Rotate.ipa",
+      buildlog_path: File.expand_path("../buildlog", __dir__)
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: File.expand_path("../Rotate.ipa", __dir__),
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  # ---------------------------------------------------------------------
+  # CI flow — Loop-parity browser build (GitHub Actions + match).
+  # See fastlane/testflight.md. Not used by the local lanes above.
+  # ---------------------------------------------------------------------
+
   desc "Build Rotate"
   lane :build_rotate do
     setup_ci if ENV['CI']

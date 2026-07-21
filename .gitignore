@@ -18,4 +18,8 @@ fastlane/new_certificate_needed.txt
 *.dSYM.zip
 vendor/bundle/
 .bundle/
->>>>>>> f948dc5 (Add Loop-parity fastlane browser-build release process)
+
+# App Store Connect API keys must never be committed
+AuthKey_*.p8
+private_keys/
+fastlane/README.md
