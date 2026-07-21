@@ -50,7 +50,7 @@ platform :ios do
     end
   end
 
-  desc "Local build + upload to TestFlight (automatic signing)"
+  desc "Local build + upload to TestFlight (cert + sigh, no devices needed)"
   lane :beta do
     key_path = File.expand_path(ENV["FASTLANE_KEY_PATH"])
     api_key = app_store_connect_api_key(
@@ -67,12 +67,25 @@ platform :ios do
       build_number: Time.now.utc.strftime("%Y%m%d%H%M")
     )
 
-    # Cloud-signing auth flags let xcodebuild create/refresh certs and
-    # profiles headlessly, same as pressing Archive in Xcode.
-    auth_args = "-allowProvisioningUpdates" \
-      " -authenticationKeyPath #{key_path}" \
-      " -authenticationKeyID #{ENV['FASTLANE_KEY_ID']}" \
-      " -authenticationKeyIssuerID #{ENV['FASTLANE_ISSUER_ID']}"
+    # Distribution certificate (created once, installed in the login
+    # keychain) + App Store provisioning profile. Neither needs a
+    # registered device, unlike automatic development signing.
+    get_certificates(api_key: api_key)
+    get_provisioning_profile(
+      api_key: api_key,
+      app_identifier: LOCAL_BUNDLE_ID,
+      team_id: ENV["TEAMID"]
+    )
+    profile_name = lane_context[SharedValues::SIGH_NAME]
+
+    update_code_signing_settings(
+      path: LOCAL_PROJECT,
+      use_automatic_signing: false,
+      team_id: ENV["TEAMID"],
+      code_sign_identity: "Apple Distribution",
+      profile_name: profile_name,
+      targets: ["InsulinPumpSiteJournal"]
+    )
 
     gym(
       project: LOCAL_PROJECT,
@@ -80,9 +93,11 @@ platform :ios do
       configuration: "Release",
       destination: "generic/platform=iOS",
       export_method: "app-store",
-      export_options: { signingStyle: "automatic", teamID: ENV["TEAMID"] },
-      xcargs: auth_args,
-      export_xcargs: auth_args,
+      export_options: {
+        signingStyle: "manual",
+        teamID: ENV["TEAMID"],
+        provisioningProfiles: { LOCAL_BUNDLE_ID => profile_name }
+      },
       output_directory: File.expand_path("..", __dir__),
       output_name: "Rotate.ipa",
       buildlog_path: File.expand_path("../buildlog", __dir__)

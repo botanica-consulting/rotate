@@ -46,6 +46,9 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # Portrait-only apps must opt out of iPad multitasking or App Store
+        # validation rejects the upload (ITMS-90474).
+        UIRequiresFullScreen: true
         ITSAppUsesNonExemptEncryption: false
         # Loop registers the loop:// scheme; declaring it lets the handoff
         # check canOpenURL and open Loop after a placement is confirmed.
