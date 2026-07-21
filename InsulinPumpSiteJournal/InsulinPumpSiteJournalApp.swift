@@ -4,13 +4,25 @@ import SwiftData
 @main
 struct InsulinPumpSiteJournalApp: App {
     private let modelContainer: ModelContainer = {
-        // UI tests launch with a clean in-memory store.
+        // UI tests launch with a clean in-memory store; --uitest-seed adds a
+        // spread of past placements so recency tiers are visible in visual QA.
         if CommandLine.arguments.contains("--uitest-reset") {
             let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-            return try! ModelContainer(
+            let container = try! ModelContainer(
                 for: PlacementRecord.self,
                 configurations: configuration
             )
+            if CommandLine.arguments.contains("--uitest-seed") {
+                let context = ModelContext(container)
+                for (index, site) in PumpSite.catalog.prefix(9).enumerated() {
+                    context.insert(PlacementRecord(
+                        siteID: site.id,
+                        placedAt: Date.now.addingTimeInterval(-Double(index + 1) * 86_400)
+                    ))
+                }
+                try? context.save()
+            }
+            return container
         }
         // Local store in the standard application container: eligible for
         // normal encrypted device backups, no iCloud entitlement required.

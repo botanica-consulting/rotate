@@ -6,9 +6,9 @@ import SwiftUI
 struct SiteSuggestionCard: View {
     let site: PumpSite
     let lastUsed: Date?
+    let tier: SiteRecencyModel.Tier
     let isSelected: Bool
     let index: Int
-    let namespace: Namespace.ID
     let action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -19,7 +19,7 @@ struct SiteSuggestionCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Spacer()
-                    BodyThumbnail(site: site)
+                    BodyThumbnail(site: site, markerColor: AppTheme.color(for: tier))
                         .frame(height: 130)
                     Spacer()
                 }
@@ -61,8 +61,7 @@ struct SiteSuggestionCard: View {
                     .fill(.thickMaterial)
             }
         }
-        .modifier(SelectionGlass(isSelected: isSelected, namespace: namespace))
-        .scaleEffect(isSelected && !reduceMotion ? 1.03 : 1)
+        .modifier(SelectionGlass(isSelected: isSelected))
         .accessibilityLabel(accessibilityDescription)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("suggestionCard-\(index)")
@@ -82,12 +81,11 @@ struct SiteSuggestionCard: View {
     }
 }
 
-/// Applies the Liquid Glass selection treatment. All selected cards share one
-/// glass effect ID so the glass morphs from card to card as the selection
-/// moves within the enclosing `GlassEffectContainer`.
+/// Applies the Liquid Glass selection treatment. Selection changes are a
+/// plain quick fade — no morph or scale, which read as sluggish when moving
+/// between cards.
 private struct SelectionGlass: ViewModifier {
     let isSelected: Bool
-    let namespace: Namespace.ID
 
     func body(content: Content) -> some View {
         if isSelected {
@@ -96,7 +94,6 @@ private struct SelectionGlass: ViewModifier {
                     .regular.tint(AppTheme.accent.opacity(0.45)).interactive(),
                     in: .rect(cornerRadius: AppTheme.cardCornerRadius)
                 )
-                .glassEffectID("selectedSite", in: namespace)
         } else {
             content
         }

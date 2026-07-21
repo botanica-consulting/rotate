@@ -103,6 +103,26 @@ struct SiteSuggestionEngineTests {
         #expect(first.map(\.id) == second.map(\.id))
     }
 
+    @Test func excludedSitesNeverAppear() {
+        let history = [record("abdomen-upper-left", daysAgo: 2)]
+        let excluded: Set<String> = ["thigh-left", "arm-upper-right", "lower-back-left"]
+
+        let result = engine.suggestions(from: catalog, history: history, excluding: excluded)
+
+        #expect(result.count == 4)
+        #expect(result.allSatisfy { !excluded.contains($0.id) })
+    }
+
+    @Test func emptyHistoryWithExcludedStartersFillsFromCatalog() {
+        let excluded = Set(PumpSite.starterSiteIDs)
+
+        let result = engine.suggestions(from: catalog, history: [], excluding: excluded)
+
+        #expect(result.count == 4)
+        #expect(result.allSatisfy { !excluded.contains($0.id) })
+        #expect(Set(result.map(\.id)).count == 4)
+    }
+
     @Test func resultContainsNoDuplicates() {
         // The same site placed repeatedly must not produce duplicates.
         let history = [

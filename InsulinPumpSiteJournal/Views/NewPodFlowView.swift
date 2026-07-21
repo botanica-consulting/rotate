@@ -13,10 +13,11 @@ struct NewPodFlowView: View {
 
     @State private var suggestions: [PumpSite] = []
     @State private var lastUsedBySite: [String: Date] = [:]
+    @State private var recency = SiteRecencyModel(history: [])
+    @State private var shownSiteIDs: Set<String> = []
     @State private var selectedSite: PumpSite?
     @State private var savedSite: PumpSite?
     @State private var savedRecord: PlacementRecord?
-    @Namespace private var glassNamespace
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -49,6 +50,16 @@ struct NewPodFlowView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 if savedSite == nil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            shuffle()
+                        } label: {
+                            Image(systemName: "shuffle")
+                        }
+                        .accessibilityLabel("Shuffle suggestions")
+                        .accessibilityHint("Shows a different set of sites, including recently rested ones.")
+                        .accessibilityIdentifier("shuffleButton")
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             dismiss()
@@ -62,6 +73,7 @@ struct NewPodFlowView: View {
             }
         }
         .sensoryFeedback(.selection, trigger: selectedSite)
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: shownSiteIDs)
         .sensoryFeedback(.success, trigger: savedSite) { _, newValue in
             newValue != nil
         }
@@ -71,68 +83,104 @@ struct NewPodFlowView: View {
     }
 
     private var choosingContent: some View {
-        GlassEffectContainer(spacing: 24) {
-            VStack(spacing: 0) {
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, site in
-                            SiteSuggestionCard(
-                                site: site,
-                                lastUsed: lastUsedBySite[site.id],
-                                isSelected: selectedSite == site,
-                                index: index,
-                                namespace: glassNamespace
-                            ) {
-                                withAnimation(selectionAnimation) {
-                                    selectedSite = site
-                                }
+        VStack(spacing: 0) {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, site in
+                        SiteSuggestionCard(
+                            site: site,
+                            lastUsed: lastUsedBySite[site.id],
+                            tier: recency.tier(for: site.id),
+                            isSelected: selectedSite == site,
+                            index: index
+                        ) {
+                            withAnimation(selectionAnimation) {
+                                selectedSite = site
                             }
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                    .padding(.bottom, 16)
                 }
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
+            }
 
-                if let site = selectedSite {
-                    Button {
-                        confirm(site)
-                    } label: {
-                        Text("Use \(site.shortTitle)")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.glassProminent)
-                    .tint(AppTheme.accent)
-                    .controlSize(.large)
-                    .padding(.horizontal)
-                    .padding(.bottom, 12)
-                    .accessibilityIdentifier("confirmSiteButton")
-                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+            if let site = selectedSite {
+                Button {
+                    confirm(site)
+                } label: {
+                    Text("Use \(site.shortTitle)")
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.glassProminent)
+                .tint(AppTheme.accent)
+                .controlSize(.large)
+                .padding(.horizontal)
+                .padding(.bottom, 12)
+                .accessibilityIdentifier("confirmSiteButton")
+                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
         }
     }
 
+    /// Quick fade only — the morph/scale treatment read as sluggish when
+    /// moving the selection between cards.
     private var selectionAnimation: Animation? {
-        reduceMotion ? nil : .smooth(duration: 0.35)
+        reduceMotion ? nil : .easeOut(duration: 0.15)
     }
 
     private var handoffTransition: AnyTransition {
         reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96))
     }
 
-    private func loadSuggestionsIfNeeded() {
-        guard suggestions.isEmpty else { return }
+    private func fetchHistory() -> [PlacementRecord] {
         let descriptor = FetchDescriptor<PlacementRecord>(
             sortBy: [SortDescriptor(\.placedAt, order: .reverse)]
         )
-        let history = (try? modelContext.fetch(descriptor)) ?? []
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func loadSuggestionsIfNeeded() {
+        guard suggestions.isEmpty else { return }
+        let history = fetchHistory()
         lastUsedBySite = Dictionary(grouping: history, by: \.siteID)
             .compactMapValues { $0.map(\.placedAt).max() }
+        recency = SiteRecencyModel(history: history)
         suggestions = SiteSuggestionEngine().suggestions(
             from: PumpSite.catalog,
-            history: history
+            history: history,
+            excluding: recency.veryRecentSiteIDs
         )
+        shownSiteIDs = Set(suggestions.map(\.id))
+    }
+
+    /// Deals a fresh set: everything shown so far is excluded, which pulls in
+    /// progressively more recently used ("yellow") sites. The last three used
+    /// sites are never offered. When the pool runs dry, the rotation resets.
+    private func shuffle() {
+        let history = fetchHistory()
+        let engine = SiteSuggestionEngine()
+        let offLimits = recency.veryRecentSiteIDs
+
+        var next = engine.suggestions(
+            from: PumpSite.catalog,
+            history: history,
+            excluding: offLimits.union(shownSiteIDs)
+        )
+        if next.count < 4 {
+            // Pool exhausted — restart the rotation from the top.
+            next = engine.suggestions(
+                from: PumpSite.catalog,
+                history: history,
+                excluding: offLimits
+            )
+            shownSiteIDs = []
+        }
+        withAnimation(selectionAnimation) {
+            suggestions = next
+            selectedSite = nil
+        }
+        shownSiteIDs.formUnion(next.map(\.id))
     }
 
     private func confirm(_ site: PumpSite) {

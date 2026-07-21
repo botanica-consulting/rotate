@@ -13,6 +13,9 @@ final class ScreenshotWalkUITests: XCTestCase {
         if let contentSize = ProcessInfo.processInfo.environment["WALK_CONTENT_SIZE"] {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName", contentSize]
         }
+        if ProcessInfo.processInfo.environment["WALK_SEED"] == "1" {
+            app.launchArguments.append("--uitest-seed")
+        }
         app.launch()
 
         // Host-side `simctl io screenshot` polling captures the frames;
@@ -27,6 +30,11 @@ final class ScreenshotWalkUITests: XCTestCase {
         app.buttons["newPodButton"].tap()
         XCTAssertTrue(app.buttons["suggestionCard-0"].waitForExistence(timeout: 5))
         snap("02-suggestion-grid")
+
+        app.buttons["shuffleButton"].tap()
+        snap("02b-shuffled-grid")
+        app.buttons["shuffleButton"].tap()
+        snap("02c-shuffled-again")
 
         app.buttons["suggestionCard-0"].tap()
         XCTAssertTrue(app.buttons["confirmSiteButton"].waitForExistence(timeout: 5))

@@ -2,17 +2,14 @@ import SwiftUI
 import SwiftData
 
 /// A recency "heatmap" of every catalog site on the front and rear
-/// silhouettes. Recency is magnitude, so it uses a single-hue sequential
-/// ramp (orange, stronger = more recent); never-used sites are hollow
-/// outlines and the current site carries a ring — state is never encoded by
-/// color alone.
+/// silhouettes, using the app-wide tier scale: red = last three used sites,
+/// orange = recent, yellow = relatively recent, hollow = rested or never
+/// used. The current site carries a ring — state is never encoded by color
+/// alone (every marker also has a spoken description).
 struct BodyMapView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \PlacementRecord.placedAt, order: .reverse)
     private var records: [PlacementRecord]
-
-    /// Sites older than this read as fully "rested".
-    private static let restWindowDays: Double = 30
 
     var body: some View {
         NavigationStack {
@@ -26,7 +23,7 @@ struct BodyMapView: View {
 
                     legend
 
-                    Text("Warmer sites were used more recently. Prefer cool or hollow sites so recent ones can rest.")
+                    Text("Warmer sites were used more recently. Prefer clear sites so warm ones can rest.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -61,11 +58,8 @@ struct BodyMapView: View {
         records.first?.siteID
     }
 
-    /// 1.0 = used just now, 0.0 = at or beyond the rest window. nil = never used.
-    private func heat(for site: PumpSite) -> Double? {
-        guard let lastUsed = lastUsedBySite[site.id] else { return nil }
-        let days = Date.now.timeIntervalSince(lastUsed) / 86_400
-        return max(0, 1 - min(days / Self.restWindowDays, 1))
+    private var recency: SiteRecencyModel {
+        SiteRecencyModel(history: records)
     }
 
     // MARK: Figures
@@ -96,13 +90,13 @@ struct BodyMapView: View {
     }
 
     private func marker(for site: PumpSite) -> some View {
-        let heat = heat(for: site)
+        let tier = recency.tier(for: site.id)
         let isCurrent = site.id == currentSiteID
 
         return Circle()
-            .fill(heat.map { AppTheme.recent.opacity(0.25 + 0.75 * $0) } ?? Color.clear)
+            .fill(tier == .base ? Color.clear : AppTheme.color(for: tier))
             .overlay {
-                if heat == nil {
+                if tier == .base {
                     Circle().stroke(Color.secondary, lineWidth: 1.5)
                 } else {
                     Circle().stroke(.background, lineWidth: 1.5)
@@ -111,7 +105,7 @@ struct BodyMapView: View {
             .overlay {
                 if isCurrent {
                     Circle()
-                        .stroke(AppTheme.recent, lineWidth: 2)
+                        .stroke(.primary, lineWidth: 2)
                         .padding(-4)
                 }
             }
@@ -139,16 +133,19 @@ struct BodyMapView: View {
         VStack(alignment: .leading, spacing: 10) {
             legendRow(label: "Current site") {
                 Circle()
-                    .fill(AppTheme.recent)
-                    .overlay(Circle().stroke(AppTheme.recent, lineWidth: 2).padding(-4))
+                    .fill(Color.red)
+                    .overlay(Circle().stroke(.primary, lineWidth: 2).padding(-4))
             }
-            legendRow(label: "Used recently") {
-                Circle().fill(AppTheme.recent.opacity(0.85))
+            legendRow(label: "Very recent (last 3 sites)") {
+                Circle().fill(Color.red)
             }
-            legendRow(label: "Rested") {
-                Circle().fill(AppTheme.recent.opacity(0.3))
+            legendRow(label: "Recent") {
+                Circle().fill(Color.orange)
             }
-            legendRow(label: "Never used") {
+            legendRow(label: "Relatively recent") {
+                Circle().fill(Color.yellow)
+            }
+            legendRow(label: "Rested or never used") {
                 Circle().stroke(Color.secondary, lineWidth: 1.5)
             }
         }
