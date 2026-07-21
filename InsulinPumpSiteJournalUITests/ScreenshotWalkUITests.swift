@@ -49,7 +49,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         snap("04-selection-moved")
 
         app.buttons["confirmSiteButton"].tap()
-        XCTAssertTrue(app.staticTexts["Site saved"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Place your Pod"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.6)
         snap("05-loop-handoff")
 
@@ -65,5 +65,11 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(app.buttons["closeLegendButton"].waitForExistence(timeout: 5))
         snap("08-legend-sheet")
         app.buttons["closeLegendButton"].tap()
+        app.buttons["closeBodyMapButton"].tap()
+
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.buttons["closeSettingsButton"].waitForExistence(timeout: 5))
+        snap("09-settings")
+        app.buttons["closeSettingsButton"].tap()
     }
 }

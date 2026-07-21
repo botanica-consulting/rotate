@@ -22,8 +22,8 @@ final class CriticalPathUITests: XCTestCase {
         XCTAssertTrue(confirmButton.waitForExistence(timeout: 5))
         confirmButton.tap()
 
-        // See the Loop handoff.
-        XCTAssertTrue(app.staticTexts["Site saved"].waitForExistence(timeout: 5))
+        // See the placement instructions and Loop handoff.
+        XCTAssertTrue(app.staticTexts["Place your Pod"].waitForExistence(timeout: 5))
 
         // Dismiss.
         app.buttons["continueInLoopButton"].tap()

@@ -11,6 +11,7 @@ struct HistoryHomeView: View {
 
     @State private var showingNewPod = false
     @State private var showingBodyMap = false
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
@@ -24,6 +25,14 @@ struct HistoryHomeView: View {
             .background(AppBackground())
             .navigationTitle("Sites")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                    .accessibilityIdentifier("settingsButton")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingBodyMap = true
@@ -52,6 +61,9 @@ struct HistoryHomeView: View {
             }
             .sheet(isPresented: $showingBodyMap) {
                 BodyMapView()
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
             }
         }
         .fontDesign(.rounded)
@@ -97,6 +109,12 @@ struct HistoryHomeView: View {
     private func currentCard(for record: PlacementRecord) -> some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
+                // Technical readout of how long this Pod has been on.
+                TimelineView(.everyMinute) { context in
+                    Text(podAgeText(at: context.date, since: record.placedAt))
+                        .font(.system(.title, design: .monospaced).weight(.semibold))
+                        .contentTransition(.numericText())
+                }
                 Text(siteTitle(for: record))
                     .font(.title3.weight(.semibold))
                 Text("Placed \(record.placedAt.formatted(.relative(presentation: .named)))")
@@ -105,15 +123,21 @@ struct HistoryHomeView: View {
             }
             Spacer()
             if let site = PumpSite.site(for: record.siteID) {
-                BodyThumbnail(site: site, markerColor: AppTheme.recent)
+                BodyThumbnail(site: site, fill: AppTheme.recent)
                     .frame(height: 96)
             }
         }
         .padding(.vertical, 6)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "Current site: \(siteTitle(for: record)), placed \(absoluteDate(for: record))"
+            "Current site: \(siteTitle(for: record)), on for \(podAgeText(at: .now, since: record.placedAt, spoken: true)), placed \(absoluteDate(for: record))"
         )
+    }
+
+    /// Whole hours since placement: "0h" through "72h" and beyond.
+    private func podAgeText(at now: Date, since placedAt: Date, spoken: Bool = false) -> String {
+        let hours = max(0, Int(now.timeIntervalSince(placedAt) / 3600))
+        return spoken ? "\(hours) hours" : "\(hours)h"
     }
 
     private func historyRow(for record: PlacementRecord, index: Int) -> some View {

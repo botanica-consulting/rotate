@@ -1,34 +1,50 @@
 import SwiftUI
 
-/// Shown inside the new-Pod flow after a placement is saved. Instructs the
-/// user to continue Pod activation in Loop. Deliberately does not attempt to
-/// launch Loop — that requires a verified integration mechanism and is
-/// deferred.
+/// Shown inside the new-Pod flow after a placement is saved: placement
+/// instructions for the chosen site, then the handoff to Loop. Deliberately
+/// does not attempt to launch Loop — that requires a verified integration
+/// mechanism and is deferred.
 struct LoopHandoffView: View {
     let site: PumpSite
     let onContinue: () -> Void
     let onChooseAnother: () -> Void
 
+    @AppStorage(MeasurementUnit.storageKey) private var unitRaw = MeasurementUnit.system.rawValue
+
+    private var unit: MeasurementUnit {
+        MeasurementUnit(rawValue: unitRaw) ?? .system
+    }
+
     var body: some View {
         VStack(spacing: 16) {
             Spacer()
 
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(AppTheme.accent)
-                .accessibilityHidden(true)
-
-            Text("Site saved")
+            Text("Place your Pod")
                 .font(.largeTitle.bold())
 
-            Text("\(site.title) has been added to your history.")
-                .font(.body)
-                .multilineTextAlignment(.center)
-
-            Text("Now open Loop and continue activating and pairing your new Pod.")
-                .font(.body)
+            Text("\(site.title) is saved to your history.")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+
+            VStack(alignment: .leading, spacing: 14) {
+                instruction(unit.spacingInstruction, systemImage: "ruler")
+                instruction(
+                    "Keep clear of waistbands and spots where clothing rubs.",
+                    systemImage: "tshirt"
+                )
+                instruction(
+                    "Clean the skin and let it dry fully before applying.",
+                    systemImage: "drop"
+                )
+                instruction(
+                    "When the Pod is on, open Loop to activate and pair it.",
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.thinMaterial, in: .rect(cornerRadius: AppTheme.cardCornerRadius))
 
             Spacer()
 
@@ -60,6 +76,17 @@ struct LoopHandoffView: View {
                 .padding(.top, 4)
         }
         .padding(24)
+    }
+
+    private func instruction(_ text: String, systemImage: String) -> some View {
+        Label {
+            Text(text)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(AppTheme.accent)
+                .frame(width: 24)
+        }
+        .font(.callout)
     }
 }
 

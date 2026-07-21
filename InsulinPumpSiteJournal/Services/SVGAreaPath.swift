@@ -58,14 +58,12 @@ enum SVGPathParser {
     }
 }
 
-/// The one mounting-area treatment: an optional tier-colored fill (nil =
-/// rested, clear) under a single shared hairline outline. Every surface that
-/// draws an area renders through this, so the look is identical at each
-/// location and for every body type.
+/// The one mounting-area treatment: a tier-colored fill under a single
+/// shared hairline outline. Every surface that draws an area renders through
+/// this, so the look is identical at each location and for every body type.
 struct SiteAreaHighlight: View {
     let area: SiteArea
-    var fill: Color?
-    var outline: Color = AppTheme.areaOutline
+    let fill: Color
     /// Set to the parent's scaleEffect so the stroke stays hairline when the
     /// figure is zoomed (cards zoom toward the area).
     var displayScale: CGFloat = 1
@@ -73,8 +71,32 @@ struct SiteAreaHighlight: View {
     var body: some View {
         let shape = SiteAreaShape(area: area)
         shape
-            .fill(fill.map { $0.opacity(AppTheme.areaFillOpacity) } ?? Color.clear)
-            .overlay(shape.stroke(outline, lineWidth: AppTheme.areaLineWidth / displayScale))
+            .fill(fill.opacity(AppTheme.areaFillOpacity))
+            .overlay(shape.stroke(AppTheme.areaOutline, lineWidth: AppTheme.areaLineWidth / displayScale))
+    }
+}
+
+/// A miniature white Pod marking the site currently in use — the same
+/// convention Insulet's own site map uses, so no colored border is needed.
+/// Scales with Dynamic Type so it stays legible at accessibility sizes.
+struct PodBadge: View {
+    @ScaledMetric(relativeTo: .footnote) private var width: CGFloat = 21
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: width * 0.28, style: .continuous)
+            .fill(Color.white)
+            .overlay(
+                RoundedRectangle(cornerRadius: width * 0.28, style: .continuous)
+                    .stroke(Color(.systemGray3), lineWidth: 1)
+            )
+            .overlay(alignment: .leading) {
+                Circle()
+                    .fill(Color(.systemGray4))
+                    .frame(width: width * 0.19, height: width * 0.19)
+                    .padding(.leading, width * 0.19)
+            }
+            .frame(width: width, height: width * 0.71)
+            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
     }
 }
 

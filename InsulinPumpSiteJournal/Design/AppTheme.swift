@@ -28,8 +28,9 @@ enum AppTheme {
     /// Loop's stale/critical color (systemRed) — the last three used sites.
     static let stale = Color(.systemRed)
 
-    /// Loop's "fresh" (#4CD964) — delineates the recommended sites.
-    static let fresh = Color(red: 0x4C / 255, green: 0xD9 / 255, blue: 0x64 / 255)
+    /// Rested areas: a neutral shade deeper than the bare silhouette so
+    /// rested regions read as distinct, available real estate.
+    static let restedShade = Color(.systemGray2)
 
     // Mounting-area treatment. Every surface that draws an area uses these
     // same parameters, so the rendering is identical at each location and
@@ -43,12 +44,12 @@ enum AppTheme {
 
     static let cardCornerRadius: CGFloat = 20
 
-    /// Recency heat on Loop's freshness scale: clear/rested → aging yellow →
-    /// insulin orange → stale red (last 3 used sites). Tier meaning is always
-    /// also carried by text or shape, never color alone.
+    /// Recency heat on Loop's freshness scale: rested gray → aging yellow →
+    /// insulin orange → stale red (last 3 used sites). Tier meaning is
+    /// always also carried by text or shape, never color alone.
     static func color(for tier: SiteRecencyModel.Tier) -> Color {
         switch tier {
-        case .base: accent
+        case .base: restedShade
         case .relativelyRecent: aging
         case .recent: recent
         case .veryRecent: stale

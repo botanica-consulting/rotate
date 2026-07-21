@@ -17,10 +17,31 @@ struct SiteSuggestionCard: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
-                BodyThumbnail(site: site, markerColor: AppTheme.color(for: tier), zoom: 1.35)
+                BodyThumbnail(
+                    site: site,
+                    fill: AppTheme.color(for: tier),
+                    zoom: isSelected ? 2.2 : 1.35,
+                    centerOnMarker: isSelected
+                )
                     .frame(height: 140)
                     .frame(maxWidth: .infinity)
                     .clipped()
+                    // Vignette: selection zooms into the area and softly
+                    // crops the sides. Both masks stay in the tree so the
+                    // switch cross-fades with the selection animation.
+                    .mask {
+                        ZStack {
+                            Rectangle()
+                                .opacity(isSelected ? 0 : 1)
+                            RadialGradient(
+                                colors: [.black, .black, .clear],
+                                center: .center,
+                                startRadius: 40,
+                                endRadius: 95
+                            )
+                            .opacity(isSelected ? 1 : 0)
+                        }
+                    }
 
                 Text(site.bodyView == .front ? "Front" : "Rear")
                     .font(.caption2.smallCaps())
