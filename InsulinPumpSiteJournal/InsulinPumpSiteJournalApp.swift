@@ -37,7 +37,10 @@ struct AppRootView: View {
         #if DEBUG
         // UI tests launch with a clean in-memory store; --uitest-seed adds a
         // spread of past placements so recency tiers are visible in visual QA.
-        if CommandLine.arguments.contains("--uitest-reset") {
+        // The unit-test host also stays in memory: tests build their own
+        // containers, and the host must not require CloudKit entitlements.
+        if CommandLine.arguments.contains("--uitest-reset")
+            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
             return Result {
                 let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
                 let container = try ModelContainer(
@@ -65,20 +68,16 @@ struct AppRootView: View {
             }
         }
         #endif
-        // Local store in the standard application container: eligible for
-        // normal encrypted device backups, no iCloud entitlement required.
-        //
-        // To enable iCloud sync (model is already CloudKit-compatible):
-        //   1. In project.yml, uncomment the `entitlements:` block on the app
-        //      target and regenerate (`xcodegen generate`).
-        //   2. Change `cloudKitDatabase` below from `.none` to
-        //      `.private("iCloud.io.github.0xa10.InsulinPumpSiteJournal")`.
-        //   3. Build with a team that has the iCloud capability; test on a
-        //      device or simulator signed into iCloud.
+        // Local store mirrored to the user's private CloudKit database.
+        // Sync is account-scoped and automatic: with no iCloud account the
+        // store still opens and works locally, and mirroring resumes when
+        // an account appears.
         return Result {
             try ModelContainer(
                 for: PlacementRecord.self,
-                configurations: ModelConfiguration(cloudKitDatabase: .none)
+                configurations: ModelConfiguration(
+                    cloudKitDatabase: .private("iCloud.io.github.0xa10.InsulinPumpSiteJournal")
+                )
             )
         }
     }
@@ -86,7 +85,7 @@ struct AppRootView: View {
     /// Last-resort recovery: remove the store files (and SQLite sidecars) so
     /// the next attempt starts from an empty journal.
     private static func deleteStoreFiles() {
-        let storeURL = ModelConfiguration(cloudKitDatabase: .none).url
+        let storeURL = ModelConfiguration().url
         for suffix in ["", "-wal", "-shm"] {
             try? FileManager.default.removeItem(
                 at: URL(fileURLWithPath: storeURL.path + suffix)

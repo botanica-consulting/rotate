@@ -11,6 +11,7 @@ settings:
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     TARGETED_DEVICE_FAMILY: "1"
     CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: KYL2A4S3H4
     SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
     SWIFT_APPROACHABLE_CONCURRENCY: "YES"
 
@@ -21,11 +22,8 @@ targets:
     sources:
       - path: InsulinPumpSiteJournal
         excludes: ["*.entitlements"]
-    # To enable iCloud sync, uncomment this block, regenerate the project, and
-    # flip `cloudKitDatabase` in InsulinPumpSiteJournalApp.swift to the private
-    # database (see the comment there). Requires a team with iCloud capability.
-    # entitlements:
-    #   path: InsulinPumpSiteJournal/InsulinPumpSiteJournal.entitlements
+    entitlements:
+      path: InsulinPumpSiteJournal/InsulinPumpSiteJournal.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.0xa10.InsulinPumpSiteJournal
@@ -43,6 +41,9 @@ targets:
         # Loop registers the loop:// scheme; declaring it lets the handoff
         # check canOpenURL and open Loop after a placement is confirmed.
         LSApplicationQueriesSchemes: [loop]
+        # CloudKit pushes a silent notification when another device writes;
+        # this lets the mirror pull those changes in the background.
+        UIBackgroundModes: [remote-notification]
 
   InsulinPumpSiteJournalTests:
     type: bundle.unit-test

@@ -10,6 +10,9 @@ struct SettingsView: View {
     @AppStorage(MeasurementUnit.storageKey) private var unitRaw = MeasurementUnit.system.rawValue
     @AppStorage(CompanionApp.storageKey) private var companionRaw = CompanionApp.loop.rawValue
     @State private var confirmingReset = false
+    /// Typed reset confirmation — the journal now syncs, so a reset reaches
+    /// every device. Deleting requires typing RESET, not just a second tap.
+    @State private var resetConfirmationText = ""
     @State private var resetError: Error?
 
     var body: some View {
@@ -47,26 +50,33 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("resetJournalButton")
                 } footer: {
-                    Text("Deletes every Pod record. Settings are kept.")
+                    Text("Deletes every Pod record, here and from iCloud on your other devices. Settings are kept.")
                 }
 
                 Section {
                 } footer: {
-                    Text("Privacy: your journal is stored only on this device. It leaves the device only through your encrypted device backup — iCloud sync is off.")
+                    Text("Privacy: your journal is stored on this device and syncs through your private iCloud database, readable only by your Apple Account. No third-party servers are involved.")
                 }
             }
-            .confirmationDialog(
+            .alert(
                 "Delete all Pod records?",
-                isPresented: $confirmingReset,
-                titleVisibility: .visible
+                isPresented: $confirmingReset
             ) {
+                TextField("Type RESET to confirm", text: $resetConfirmationText)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.characters)
+                    .accessibilityIdentifier("resetConfirmationField")
                 Button("Delete all records", role: .destructive) {
                     resetJournal()
                 }
+                .disabled(resetConfirmationText != "RESET")
                 .accessibilityIdentifier("confirmResetButton")
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This removes your entire placement history. It can't be undone.")
+                Text("This removes your placement history here and, through iCloud, from your other devices. It can't be undone. Type RESET to confirm.")
+            }
+            .onChange(of: confirmingReset) { _, isPresented in
+                if !isPresented { resetConfirmationText = "" }
             }
             .alert(
                 "Couldn't reset the journal",
