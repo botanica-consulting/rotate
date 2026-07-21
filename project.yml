@@ -27,8 +27,15 @@ targets:
     sources:
       - path: InsulinPumpSiteJournal
         excludes: ["*.entitlements"]
+    # XcodeGen generates this file on every `xcodegen generate` — the
+    # properties here are the source of truth, not the .entitlements file.
     entitlements:
       path: InsulinPumpSiteJournal/InsulinPumpSiteJournal.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.io.github.0xa10.InsulinPumpSiteJournal
+        com.apple.developer.icloud-services: [CloudKit]
+        aps-environment: development
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.0xa10.InsulinPumpSiteJournal
