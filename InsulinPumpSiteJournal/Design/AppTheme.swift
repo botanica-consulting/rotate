@@ -44,6 +44,13 @@ enum AppTheme {
 
     static let cardCornerRadius: CGFloat = 20
 
+    // Vignette-zoom treatment shared by the suggestion cards, the current-Pod
+    // card, and the record sheet: one zoom level for focusing on a site, and
+    // the soft radial crop's inner/outer radii as fractions of the frame.
+    static let siteFocusZoom: CGFloat = 3.0
+    static let vignetteInnerRatio: CGFloat = 0.28
+    static let vignetteOuterRatio: CGFloat = 0.68
+
     /// Recency heat on Loop's freshness scale: rested gray → aging yellow →
     /// insulin orange → stale red (last 3 used sites). Tier meaning is
     /// always also carried by text or shape, never color alone.

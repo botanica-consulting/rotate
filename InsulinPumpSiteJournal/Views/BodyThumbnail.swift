@@ -30,10 +30,12 @@ struct BodyThumbnail: View {
                         SiteAreaHighlight(area: area, fill: fill, displayScale: zoom)
                     } else {
                         // No area asset for this body type yet: dot fallback.
+                        // Sized against the zoom so the dot stays 18pt on
+                        // screen however far the figure is scaled up.
                         Circle()
                             .fill(fill)
-                            .overlay(Circle().stroke(.background, lineWidth: 2))
-                            .frame(width: 18, height: 18)
+                            .overlay(Circle().stroke(.background, lineWidth: 2 / zoom))
+                            .frame(width: 18 / zoom, height: 18 / zoom)
                             .position(
                                 x: geometry.size.width * site.markerPosition.x,
                                 y: geometry.size.height * site.markerPosition.y
@@ -63,6 +65,36 @@ struct BodyThumbnail: View {
     private var accessibilityDescription: String {
         let view = site.bodyView == .front ? "Front" : "Rear"
         return "\(view) body view, \(site.title.lowercased()) highlighted."
+    }
+}
+
+/// A BodyThumbnail zoomed onto its site with the standard soft radial crop.
+/// One place owns the vignette geometry so the current-Pod card and the
+/// record sheet render it identically at any frame size.
+struct VignettedBodyThumbnail: View {
+    let site: PumpSite
+    let fill: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            let side = min(geometry.size.width, geometry.size.height)
+            BodyThumbnail(
+                site: site,
+                fill: fill,
+                zoom: AppTheme.siteFocusZoom,
+                centerOnMarker: true
+            )
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipped()
+            .mask {
+                RadialGradient(
+                    colors: [.black, .black, .clear],
+                    center: .center,
+                    startRadius: side * AppTheme.vignetteInnerRatio,
+                    endRadius: side * AppTheme.vignetteOuterRatio
+                )
+            }
+        }
     }
 }
 

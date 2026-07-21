@@ -9,11 +9,13 @@ enum BodyType: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// Silhouettes are offered as neutral numbered options; the internal
+    /// names stay descriptive for assets and code.
     var displayName: String {
         switch self {
-        case .neutral: "Neutral"
-        case .woman: "Woman"
-        case .man: "Man"
+        case .neutral: "1"
+        case .woman: "2"
+        case .man: "3"
         }
     }
 

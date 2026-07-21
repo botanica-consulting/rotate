@@ -54,8 +54,17 @@ final class ScreenshotWalkUITests: XCTestCase {
         snap("05-loop-handoff")
 
         app.buttons["continueInLoopButton"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["historyRow-0"].waitForExistence(timeout: 5))
-        snap("06-history-home")
+        XCTAssertTrue(app.buttons["currentPodCard"].waitForExistence(timeout: 5))
+        snap("06-current-hero")
+
+        app.buttons["historyHintButton"].tap()
+        Thread.sleep(forTimeInterval: 0.8) // page-up scroll settles
+        snap("06b-history-page")
+
+        app.descendants(matching: .any)["historyRow-0"].tap()
+        XCTAssertTrue(app.buttons["closeRecordButton"].waitForExistence(timeout: 5))
+        snap("06c-record-detail")
+        app.buttons["closeRecordButton"].tap()
 
         app.buttons["bodyMapButton"].tap()
         XCTAssertTrue(app.buttons["closeBodyMapButton"].waitForExistence(timeout: 5))

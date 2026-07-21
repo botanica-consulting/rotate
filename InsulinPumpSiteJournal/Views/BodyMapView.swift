@@ -21,7 +21,7 @@ struct BodyMapView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    Picker("Body type", selection: $bodyTypeRaw) {
+                    Picker("Silhouette", selection: $bodyTypeRaw) {
                         ForEach(BodyType.allCases) { type in
                             Text(type.displayName).tag(type.rawValue)
                         }

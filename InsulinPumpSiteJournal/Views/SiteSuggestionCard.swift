@@ -14,16 +14,20 @@ struct SiteSuggestionCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
+    private let thumbnailHeight: CGFloat = 140
+    /// Unselected cards stay lightly zoomed toward the site for context.
+    private let restingZoom: CGFloat = 1.35
+
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
                 BodyThumbnail(
                     site: site,
                     fill: AppTheme.color(for: tier),
-                    zoom: isSelected ? 3.0 : 1.35,
+                    zoom: isSelected ? AppTheme.siteFocusZoom : restingZoom,
                     centerOnMarker: isSelected
                 )
-                    .frame(height: 140)
+                    .frame(height: thumbnailHeight)
                     .frame(maxWidth: .infinity)
                     .clipped()
                     // Vignette: selection zooms into the area and softly
@@ -36,8 +40,8 @@ struct SiteSuggestionCard: View {
                             RadialGradient(
                                 colors: [.black, .black, .clear],
                                 center: .center,
-                                startRadius: 40,
-                                endRadius: 95
+                                startRadius: thumbnailHeight * AppTheme.vignetteInnerRatio,
+                                endRadius: thumbnailHeight * AppTheme.vignetteOuterRatio
                             )
                             .opacity(isSelected ? 1 : 0)
                         }
@@ -108,19 +112,20 @@ struct SiteSuggestionCard: View {
 
 /// Applies the Liquid Glass selection treatment. Selection changes are a
 /// plain quick fade — no morph or scale, which read as sluggish when moving
-/// between cards.
+/// between cards. The modifier stays in the tree and toggles via `isEnabled`:
+/// an if/else here would change the card's view identity on selection, which
+/// resets the thumbnail instead of animating its zoom.
 private struct SelectionGlass: ViewModifier {
     let isSelected: Bool
 
     func body(content: Content) -> some View {
-        if isSelected {
-            content
+        content.background {
+            Color.clear
                 .glassEffect(
                     .regular.tint(AppTheme.accent.opacity(0.45)).interactive(),
                     in: .rect(cornerRadius: AppTheme.cardCornerRadius)
                 )
-        } else {
-            content
+                .opacity(isSelected ? 1 : 0)
         }
     }
 }

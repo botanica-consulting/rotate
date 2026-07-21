@@ -18,6 +18,9 @@ struct NewPodFlowView: View {
     @State private var selectedSite: PumpSite?
     @State private var savedSite: PumpSite?
     @State private var savedRecord: PlacementRecord?
+    /// The previously current record, whose stop time this save stamped —
+    /// kept so "Choose another site" can restore it.
+    @State private var closedRecord: PlacementRecord?
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -185,6 +188,11 @@ struct NewPodFlowView: View {
 
     private func confirm(_ site: PumpSite) {
         let record = PlacementRecord(siteID: site.id)
+        // The outgoing Pod comes off when the new one goes on.
+        if let current = fetchHistory().first, current.removedAt == nil {
+            current.removedAt = record.placedAt
+            closedRecord = current
+        }
         modelContext.insert(record)
         try? modelContext.save()
         savedRecord = record
@@ -196,9 +204,11 @@ struct NewPodFlowView: View {
     private func chooseAnotherSite() {
         if let savedRecord {
             modelContext.delete(savedRecord)
-            try? modelContext.save()
         }
+        closedRecord?.removedAt = nil
+        try? modelContext.save()
         savedRecord = nil
+        closedRecord = nil
         withAnimation(selectionAnimation) {
             savedSite = nil
             selectedSite = nil
