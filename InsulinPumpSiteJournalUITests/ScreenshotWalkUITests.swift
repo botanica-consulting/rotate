@@ -60,5 +60,10 @@ final class ScreenshotWalkUITests: XCTestCase {
         app.buttons["bodyMapButton"].tap()
         XCTAssertTrue(app.buttons["closeBodyMapButton"].waitForExistence(timeout: 5))
         snap("07-body-map")
+
+        app.buttons["legendButton"].tap()
+        XCTAssertTrue(app.buttons["closeLegendButton"].waitForExistence(timeout: 5))
+        snap("08-legend-sheet")
+        app.buttons["closeLegendButton"].tap()
     }
 }

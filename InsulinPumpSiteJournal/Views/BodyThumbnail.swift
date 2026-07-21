@@ -19,13 +19,11 @@ struct BodyThumbnail: View {
         Image(bodyType.assetName(for: site.bodyView))
             .resizable()
             .scaledToFit()
+            .opacity(AppTheme.silhouetteOpacity)
             .overlay {
                 GeometryReader { geometry in
                     if let area = SiteAreaCatalog.area(for: site.id, bodyType: bodyType) {
-                        let shape = SiteAreaShape(area: area)
-                        shape
-                            .fill(markerColor.opacity(0.4))
-                            .overlay(shape.stroke(markerColor, lineWidth: 2))
+                        SiteAreaHighlight(area: area, fill: markerColor, displayScale: zoom)
                     } else {
                         // No area asset for this body type yet: dot fallback.
                         Circle()

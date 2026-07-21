@@ -11,6 +11,7 @@ struct BodyMapView: View {
     @Query(sort: \PlacementRecord.placedAt, order: .reverse)
     private var records: [PlacementRecord]
     @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
+    @State private var showingLegend = false
 
     private var bodyType: BodyType {
         BodyType(rawValue: bodyTypeRaw) ?? .neutral
@@ -33,9 +34,7 @@ struct BodyMapView: View {
                         mapFigure(for: .rear, title: "Rear")
                     }
 
-                    legend
-
-                    Text("Warmer sites were used more recently. Prefer clear sites so warm ones can rest.")
+                    Text("When changing your Pod, Insulet recommends a site at least 1 inch from the previous one, 2 inches from the navel, and away from waistbands or areas where clothing rubs. Rotating sites gives each area time to recover.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -46,6 +45,15 @@ struct BodyMapView: View {
             .navigationTitle("Body map")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingLegend = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityLabel("How to read this map")
+                    .accessibilityIdentifier("legendButton")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         dismiss()
@@ -55,6 +63,9 @@ struct BodyMapView: View {
                     .accessibilityLabel("Close body map")
                     .accessibilityIdentifier("closeBodyMapButton")
                 }
+            }
+            .sheet(isPresented: $showingLegend) {
+                legendSheet
             }
         }
     }
@@ -90,6 +101,7 @@ struct BodyMapView: View {
             Image(bodyType.assetName(for: bodyView))
                 .resizable()
                 .scaledToFit()
+                .opacity(AppTheme.silhouetteOpacity)
                 .overlay {
                     GeometryReader { geometry in
                         ForEach(PumpSite.catalog.filter { $0.bodyView == bodyView }) { site in
@@ -112,24 +124,26 @@ struct BodyMapView: View {
         }
     }
 
-    /// The anatomical mounting area, recency-colored; a green line delineates
-    /// the recommended sites and the current site keeps its primary ring.
-    /// VoiceOver focuses a 44pt element at the area's centroid rather than
-    /// the whole figure.
+    /// The anatomical mounting area: recency-colored fill under the shared
+    /// hairline outline. The outline hue is the only thing that varies —
+    /// primary for the current site, Loop fresh green for the recommended
+    /// ones, the neutral grid gray otherwise — never its weight. VoiceOver
+    /// focuses a 44pt element at the area's centroid rather than the whole
+    /// figure.
     @ViewBuilder
     private func areaOverlay(for site: PumpSite, area: SiteArea, in geometry: GeometryProxy) -> some View {
         let tier = recency.tier(for: site.id)
         let isCurrent = site.id == currentSiteID
         let isRecommended = recommendedSiteIDs.contains(site.id)
-        let shape = SiteAreaShape(area: area)
-        let strokeColor: Color = isCurrent ? .primary
-            : isRecommended ? .green
-            : tier == .base ? .secondary
-            : AppTheme.color(for: tier)
+        let outline: Color = isCurrent ? .primary
+            : isRecommended ? AppTheme.fresh
+            : AppTheme.areaOutline
 
-        shape
-            .fill(tier == .base ? Color.clear : AppTheme.color(for: tier).opacity(0.4))
-            .overlay(shape.stroke(strokeColor, lineWidth: isCurrent || isRecommended ? 2.5 : 1.5))
+        SiteAreaHighlight(
+            area: area,
+            fill: tier == .base ? nil : AppTheme.color(for: tier),
+            outline: outline
+        )
             .accessibilityHidden(true)
             .overlay {
                 Color.clear
@@ -153,20 +167,19 @@ struct BodyMapView: View {
         return Circle()
             .fill(tier == .base ? Color.clear : AppTheme.color(for: tier))
             .overlay {
-                if tier == .base {
-                    Circle().stroke(Color.secondary, lineWidth: 1.5)
-                } else {
-                    Circle().stroke(.background, lineWidth: 1.5)
-                }
+                Circle().stroke(
+                    tier == .base ? AppTheme.areaOutline : Color(.systemBackground),
+                    lineWidth: AppTheme.areaLineWidth
+                )
             }
             .overlay {
                 if isCurrent {
                     Circle()
-                        .stroke(.primary, lineWidth: 2)
+                        .stroke(.primary, lineWidth: AppTheme.areaLineWidth)
                         .padding(-4)
                 } else if isRecommended {
                     Circle()
-                        .stroke(.green, lineWidth: 2)
+                        .stroke(AppTheme.fresh, lineWidth: AppTheme.areaLineWidth)
                         .padding(-4)
                 }
             }
@@ -199,40 +212,57 @@ struct BodyMapView: View {
 
     // MARK: Legend
 
-    private var legend: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            legendRow(label: "Current site") {
-                Circle()
-                    .fill(Color.red)
-                    .overlay(Circle().stroke(.primary, lineWidth: 2).padding(-4))
+    private var legendSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    legendRow(label: "Current site", fill: AppTheme.stale, outline: .primary)
+                    legendRow(label: "Recommended next", fill: nil, outline: AppTheme.fresh)
+                    legendRow(label: "Very recent (last 3 sites)", fill: AppTheme.stale)
+                    legendRow(label: "Recent", fill: AppTheme.recent)
+                    legendRow(label: "Relatively recent", fill: AppTheme.aging)
+                    legendRow(label: "Rested or never used", fill: nil)
+
+                    Text("Fill shows how recently each site was used; the outline marks the current site and the suggested next ones.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 8)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .accessibilityElement(children: .combine)
             }
-            legendRow(label: "Recommended next") {
-                Circle().stroke(Color.green, lineWidth: 2)
-            }
-            legendRow(label: "Very recent (last 3 sites)") {
-                Circle().fill(Color.red)
-            }
-            legendRow(label: "Recent") {
-                Circle().fill(Color.orange)
-            }
-            legendRow(label: "Relatively recent") {
-                Circle().fill(Color.yellow)
-            }
-            legendRow(label: "Rested or never used") {
-                Circle().stroke(Color.secondary, lineWidth: 1.5)
+            .navigationTitle("Reading the map")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        showingLegend = false
+                    }
+                    .accessibilityIdentifier("closeLegendButton")
+                }
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: .rect(cornerRadius: AppTheme.cardCornerRadius))
-        .accessibilityElement(children: .combine)
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
     }
 
-    private func legendRow(label: String, @ViewBuilder swatch: () -> some View) -> some View {
+    /// Swatches use the exact area treatment: tier fill under the shared
+    /// hairline outline.
+    private func legendRow(
+        label: String,
+        fill: Color?,
+        outline: Color = AppTheme.areaOutline
+    ) -> some View {
         HStack(spacing: 12) {
-            swatch()
-                .frame(width: 14, height: 14)
-                .padding(4)
+            RoundedRectangle(cornerRadius: 5)
+                .fill(fill.map { $0.opacity(AppTheme.areaFillOpacity) } ?? Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(outline, lineWidth: AppTheme.areaLineWidth)
+                )
+                .frame(width: 22, height: 16)
+                .padding(2)
             Text(label)
                 .font(.subheadline)
         }

@@ -58,6 +58,26 @@ enum SVGPathParser {
     }
 }
 
+/// The one mounting-area treatment: an optional tier-colored fill (nil =
+/// rested, clear) under a single shared hairline outline. Every surface that
+/// draws an area renders through this, so the look is identical at each
+/// location and for every body type.
+struct SiteAreaHighlight: View {
+    let area: SiteArea
+    var fill: Color?
+    var outline: Color = AppTheme.areaOutline
+    /// Set to the parent's scaleEffect so the stroke stays hairline when the
+    /// figure is zoomed (cards zoom toward the area).
+    var displayScale: CGFloat = 1
+
+    var body: some View {
+        let shape = SiteAreaShape(area: area)
+        shape
+            .fill(fill.map { $0.opacity(AppTheme.areaFillOpacity) } ?? Color.clear)
+            .overlay(shape.stroke(outline, lineWidth: AppTheme.areaLineWidth / displayScale))
+    }
+}
+
 /// Renders a `SiteArea` (path data in the silhouette's viewBox space) scaled
 /// into the given rect — which must be the silhouette image's fitted frame.
 struct SiteAreaShape: Shape {
