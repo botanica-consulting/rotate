@@ -38,17 +38,15 @@ xcodebuild ... test -only-testing:InsulinPumpSiteJournalTests
 xcodebuild ... test -only-testing:InsulinPumpSiteJournalUITests
 ```
 
-## iCloud sync (prepared, not enabled)
+## iCloud sync
 
-Data is currently local-only (still covered by normal encrypted device backup).
-The model is already CloudKit-compatible (no unique constraints, defaulted
-properties). To turn sync on:
-
-1. Uncomment the `entitlements:` block in `project.yml`, run `xcodegen generate`.
-2. In `InsulinPumpSiteJournalApp.swift`, change `cloudKitDatabase: .none` to
-   `.private("iCloud.io.github.0xa10.InsulinPumpSiteJournal")`.
-3. Build with a development team that has the iCloud capability; test signed
-   into iCloud.
+The SwiftData store mirrors to the user's private CloudKit database
+(`iCloud.io.github.0xa10.InsulinPumpSiteJournal`). Sync is account-scoped and
+automatic — no account means the app simply stays local until one appears.
+CloudKit's silent pushes (the `remote-notification` background mode) pull in
+changes made on other devices. Building requires a development team with the
+iCloud capability; with automatic signing, Xcode provisions the container on
+first build.
 
 ## Structure
 
