@@ -20,7 +20,7 @@ struct SiteSuggestionCard: View {
                 BodyThumbnail(
                     site: site,
                     fill: AppTheme.color(for: tier),
-                    zoom: isSelected ? 2.2 : 1.35,
+                    zoom: isSelected ? 3.0 : 1.35,
                     centerOnMarker: isSelected
                 )
                     .frame(height: 140)
@@ -28,7 +28,7 @@ struct SiteSuggestionCard: View {
                     .clipped()
                     // Vignette: selection zooms into the area and softly
                     // crops the sides. Both masks stay in the tree so the
-                    // switch cross-fades with the selection animation.
+                    // switch cross-fades with the zoom animation.
                     .mask {
                         ZStack {
                             Rectangle()
@@ -42,6 +42,12 @@ struct SiteSuggestionCard: View {
                             .opacity(isSelected ? 1 : 0)
                         }
                     }
+                    // The zoom gets its own settle-in spring; the rest of the
+                    // selection treatment keeps the flow's quick fade.
+                    .animation(
+                        reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.8),
+                        value: isSelected
+                    )
 
                 Text(site.bodyView == .front ? "Front" : "Rear")
                     .font(.caption2.smallCaps())

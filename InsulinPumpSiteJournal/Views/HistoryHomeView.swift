@@ -107,19 +107,15 @@ struct HistoryHomeView: View {
     }
 
     private func currentCard(for record: PlacementRecord) -> some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .bottom, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                // Technical readout of how long this Pod has been on.
-                TimelineView(.everyMinute) { context in
-                    Text(podAgeText(at: context.date, since: record.placedAt))
-                        .font(.system(.title, design: .monospaced).weight(.semibold))
-                        .contentTransition(.numericText())
-                }
                 Text(siteTitle(for: record))
                     .font(.title3.weight(.semibold))
                 Text("Placed \(record.placedAt.formatted(.relative(presentation: .named)))")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.recent)
+                PodAgeCounter(placedAt: record.placedAt)
+                    .padding(.top, 10)
             }
             Spacer()
             if let site = PumpSite.site(for: record.siteID) {
@@ -130,14 +126,8 @@ struct HistoryHomeView: View {
         .padding(.vertical, 6)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "Current site: \(siteTitle(for: record)), on for \(podAgeText(at: .now, since: record.placedAt, spoken: true)), placed \(absoluteDate(for: record))"
+            "Current site: \(siteTitle(for: record)), on for \(PodAgeCounter.spokenText(at: .now, since: record.placedAt)), placed \(absoluteDate(for: record))"
         )
-    }
-
-    /// Whole hours since placement: "0h" through "72h" and beyond.
-    private func podAgeText(at now: Date, since placedAt: Date, spoken: Bool = false) -> String {
-        let hours = max(0, Int(now.timeIntervalSince(placedAt) / 3600))
-        return spoken ? "\(hours) hours" : "\(hours)h"
     }
 
     private func historyRow(for record: PlacementRecord, index: Int) -> some View {
