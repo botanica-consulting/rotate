@@ -38,6 +38,14 @@ xcodebuild ... test -only-testing:InsulinPumpSiteJournalTests
 xcodebuild ... test -only-testing:InsulinPumpSiteJournalUITests
 ```
 
+## TestFlight builds from a browser (no Mac required)
+
+The repo ships the same fastlane + GitHub Actions "browser build" process as
+[LoopWorkspace](https://github.com/LoopKit/LoopWorkspace): fork the repo, add
+the same 6 Secrets used by the Loop browser build, and run the numbered
+workflows under the Actions tab (1. Validate Secrets → 2. Add Identifiers →
+4. Build Rotate). See [fastlane/testflight.md](fastlane/testflight.md).
+
 ## iCloud sync (prepared, not enabled)
 
 Data is currently local-only (still covered by normal encrypted device backup).
