@@ -10,7 +10,6 @@ struct LoopHandoffView: View {
     let site: PumpSite
     var deviceType: DeviceType = .pump
     let onConfirm: () -> Void
-    let onChooseAnother: () -> Void
 
     @AppStorage(CompanionApp.storageKey) private var companionRaw = CompanionApp.loop.rawValue
 
@@ -72,16 +71,6 @@ struct LoopHandoffView: View {
                 .controlSize(.large)
                 .accessibilityIdentifier("continueInLoopButton")
 
-                Button {
-                    onChooseAnother()
-                } label: {
-                    Text("Choose another site")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.glass)
-                .controlSize(.large)
-                .accessibilityIdentifier("chooseAnotherSiteButton")
-
                 Text(handsOffToCompanion
                     ? "Continuing saves the placement and opens \(companion.displayName)."
                     : "Confirming saves the placement.")
@@ -132,5 +121,5 @@ struct LoopHandoffView: View {
 }
 
 #Preview("Handoff") {
-    LoopHandoffView(site: PumpSite.catalog[4], onConfirm: {}, onChooseAnother: {})
+    LoopHandoffView(site: PumpSite.catalog[4], onConfirm: {})
 }

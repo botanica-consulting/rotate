@@ -45,11 +45,13 @@ final class AccessibilityUITests: XCTestCase {
         XCTAssertTrue(confirm.label.localizedCaseInsensitiveContains("abdomen"))
         confirm.tap()
 
-        // Handoff buttons ≥44pt; confirming saves the placement.
+        // Handoff: the confirm button is ≥44pt, and Back/X escape controls
+        // exist. Confirming saves the placement.
         let continueButton = app.buttons["continueInLoopButton"]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 5))
         XCTAssertGreaterThanOrEqual(continueButton.frame.height, 44)
-        XCTAssertGreaterThanOrEqual(app.buttons["chooseAnotherSiteButton"].frame.height, 44)
+        XCTAssertTrue(app.buttons["backToSitesButton"].exists)
+        XCTAssertTrue(app.buttons["closeFlowButton"].exists)
         continueButton.tap()
 
         // History row (reached via the page-up hint; rows are lazy):

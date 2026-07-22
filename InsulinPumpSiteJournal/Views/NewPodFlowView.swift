@@ -42,8 +42,7 @@ struct NewPodFlowView: View {
                     LoopHandoffView(
                         site: pendingSite,
                         deviceType: deviceType,
-                        onConfirm: { finishPlacement(pendingSite) },
-                        onChooseAnother: chooseAnotherSite
+                        onConfirm: { finishPlacement(pendingSite) }
                     )
                     .transition(handoffTransition)
                 } else {
@@ -72,15 +71,28 @@ struct NewPodFlowView: View {
                         .accessibilityHint("Shows a different set of sites, including recently rested ones.")
                         .accessibilityIdentifier("shuffleButton")
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
+                } else {
+                    // On the placement screen, Back returns to the site choices
+                    // and the X leaves the flow entirely — nothing is saved
+                    // either way (the write happens only on confirm).
+                    ToolbarItem(placement: .topBarLeading) {
                         Button {
-                            dismiss()
+                            chooseAnotherSite()
                         } label: {
-                            Image(systemName: "xmark")
+                            Label("Back", systemImage: "chevron.backward")
                         }
-                        .accessibilityLabel("Close without saving")
-                        .accessibilityIdentifier("closeFlowButton")
+                        .accessibilityLabel("Back to site choices")
+                        .accessibilityIdentifier("backToSitesButton")
                     }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel("Close without saving")
+                    .accessibilityIdentifier("closeFlowButton")
                 }
             }
         }
