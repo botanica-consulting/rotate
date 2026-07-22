@@ -37,30 +37,15 @@ struct NewPodFlowView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let pendingSite {
-                    LoopHandoffView(
-                        site: pendingSite,
-                        deviceType: deviceType,
-                        onConfirm: { finishPlacement(pendingSite) }
-                    )
-                    .transition(handoffTransition)
-                } else {
-                    choosingContent
-                        .transition(.opacity)
-                }
-            }
-            .background(AppBackground())
-            // The full title ellipsizes at accessibility text sizes; fall back
-            // to a shorter one there instead of truncating.
-            .navigationTitle(
-                pendingSite != nil ? ""
-                    : dynamicTypeSize.isAccessibilitySize ? "Next site"
-                    : "Choose your next site"
-            )
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                if pendingSite == nil {
+            choosingContent
+                .background(AppBackground())
+                // The full title ellipsizes at accessibility text sizes; fall
+                // back to a shorter one there instead of truncating.
+                .navigationTitle(
+                    dynamicTypeSize.isAccessibilitySize ? "Next site" : "Choose your next site"
+                )
+                .navigationBarTitleDisplayMode(.large)
+                .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
                             shuffle()
@@ -71,30 +56,40 @@ struct NewPodFlowView: View {
                         .accessibilityHint("Shows a different set of sites, including recently rested ones.")
                         .accessibilityIdentifier("shuffleButton")
                     }
-                } else {
-                    // On the placement screen, Back returns to the site choices
-                    // and the X leaves the flow entirely — nothing is saved
-                    // either way (the write happens only on confirm).
-                    ToolbarItem(placement: .topBarLeading) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            chooseAnotherSite()
+                            dismiss()
                         } label: {
-                            Label("Back", systemImage: "chevron.backward")
+                            Image(systemName: "xmark")
                         }
-                        .accessibilityLabel("Back to site choices")
-                        .accessibilityIdentifier("backToSitesButton")
+                        .accessibilityLabel("Close without saving")
+                        .accessibilityIdentifier("closeFlowButton")
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
+                // Push the placement step so going back is a native pop (no
+                // crossfade flash) with a system back button. The trailing X
+                // here saves and returns to the app — like Continue, minus the
+                // hand-off to the companion app.
+                .navigationDestination(item: $pendingSite) { site in
+                    LoopHandoffView(
+                        site: site,
+                        deviceType: deviceType,
+                        onConfirm: { finishPlacement(site, openCompanion: true) }
+                    )
+                    .background(AppBackground())
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                finishPlacement(site, openCompanion: false)
+                            } label: {
+                                Image(systemName: "xmark")
+                            }
+                            .accessibilityLabel("Save and return to the app")
+                            .accessibilityIdentifier("savePlacementButton")
+                        }
                     }
-                    .accessibilityLabel("Close without saving")
-                    .accessibilityIdentifier("closeFlowButton")
                 }
-            }
         }
         .sensoryFeedback(.selection, trigger: selectedSite)
         .sensoryFeedback(.impact(flexibility: .soft), trigger: shownSiteIDs)
@@ -143,9 +138,7 @@ struct NewPodFlowView: View {
 
             if let site = selectedSite {
                 Button {
-                    withAnimation(selectionAnimation) {
-                        pendingSite = site
-                    }
+                    pendingSite = site
                 } label: {
                     Text("Use \(site.shortTitle)")
                         .frame(maxWidth: .infinity)
@@ -165,10 +158,6 @@ struct NewPodFlowView: View {
     /// moving the selection between cards.
     private var selectionAnimation: Animation? {
         reduceMotion ? nil : .easeOut(duration: 0.15)
-    }
-
-    private var handoffTransition: AnyTransition {
-        reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96))
     }
 
     /// History for this device track only, newest first.
@@ -224,24 +213,18 @@ struct NewPodFlowView: View {
 
     /// The one write in the flow: atomically closes the previous Pod and
     /// records the new placement. On failure the journal is untouched and
-    /// the user stays here.
-    private func finishPlacement(_ site: PumpSite) {
+    /// the user stays here. `openCompanion` hands off to the companion app
+    /// (the primary "Continue" button); the X saves without leaving the app.
+    private func finishPlacement(_ site: PumpSite, openCompanion: Bool) {
         do {
             try JournalStore(context: modelContext).startPlacement(siteID: site.id, deviceType: deviceType)
             savedCount += 1
-            if let url = CompanionApp(rawValue: companionRaw)?.launchURL {
+            if openCompanion, let url = CompanionApp(rawValue: companionRaw)?.launchURL {
                 openURL(url)
             }
             dismiss()
         } catch {
             saveError = error
-        }
-    }
-
-    private func chooseAnotherSite() {
-        withAnimation(selectionAnimation) {
-            pendingSite = nil
-            selectedSite = nil
         }
     }
 }
