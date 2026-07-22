@@ -8,6 +8,7 @@ import SwiftUI
 /// harmless when the companion is absent (the save still happens).
 struct LoopHandoffView: View {
     let site: PumpSite
+    var deviceType: DeviceType = .pump
     let onConfirm: () -> Void
     let onChooseAnother: () -> Void
 
@@ -26,12 +27,18 @@ struct LoopHandoffView: View {
         companion.launchURL != nil
     }
 
+    /// Where the last step tells the user to go to activate the device — the
+    /// chosen companion by name, or a neutral phrase when none is set.
+    private var activationTarget: String {
+        handsOffToCompanion ? companion.displayName : (deviceType == .pump ? "Loop" : "your sensor app")
+    }
+
     var body: some View {
         // ScrollView so accessibility text sizes grow past the screen
         // instead of clipping.
         ScrollView {
             VStack(spacing: 16) {
-                Text("Place your Pod")
+                Text("Place your \(deviceType.noun)")
                     .font(.largeTitle.bold())
                     .padding(.top, 32)
 
@@ -41,19 +48,9 @@ struct LoopHandoffView: View {
                     .multilineTextAlignment(.center)
 
                 VStack(alignment: .leading, spacing: 14) {
-                    instruction(unit.spacingInstruction, systemImage: "ruler")
-                    instruction(
-                        "Keep clear of waistbands and spots where clothing rubs.",
-                        systemImage: "tshirt"
-                    )
-                    instruction(
-                        "Clean the skin and let it dry fully before applying.",
-                        systemImage: "drop"
-                    )
-                    instruction(
-                        "When the Pod is on, open Loop to activate and pair it.",
-                        systemImage: "arrow.triangle.2.circlepath"
-                    )
+                    ForEach(Array(instructions.enumerated()), id: \.offset) { _, step in
+                        instruction(step.text, systemImage: step.symbol)
+                    }
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -68,7 +65,7 @@ struct LoopHandoffView: View {
                 } label: {
                     Text(handsOffToCompanion
                         ? "Continue in \(companion.displayName)"
-                        : "Pod is on — Save")
+                        : "\(deviceType.nounCapitalized) is on — Save")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glassProminent)
@@ -88,13 +85,38 @@ struct LoopHandoffView: View {
 
                 Text(handsOffToCompanion
                     ? "Continuing saves the placement and opens \(companion.displayName)."
-                    : "Confirming saves the placement. Then open Loop to pair.")
+                    : "Confirming saves the placement.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 8)
+        }
+    }
+
+    /// Device-specific placement guidance. The last step names the companion
+    /// so it stays aligned with the confirm button.
+    private var instructions: [(text: String, symbol: String)] {
+        switch deviceType {
+        case .pump:
+            return [
+                (unit.spacingInstruction(for: .pump), "ruler"),
+                ("Keep clear of waistbands and spots where clothing rubs.", "tshirt"),
+                ("Clean the skin and let it dry fully before applying.", "drop"),
+                ("When the Pod is on, open \(activationTarget) to activate and pair it.",
+                 "arrow.triangle.2.circlepath"),
+            ]
+        case .cgm:
+            return [
+                (unit.spacingInstruction(for: .cgm), "ruler"),
+                ("Use the back of an upper arm or the abdomen. Avoid scars, moles, and bony spots.",
+                 "target"),
+                ("Clean the skin with an alcohol wipe and let it dry fully before applying.", "drop"),
+                ("Press firmly around the edge for a few seconds so the adhesive sticks.", "hand.tap"),
+                ("When the sensor is on, open \(activationTarget) to start it.",
+                 "arrow.triangle.2.circlepath"),
+            ]
         }
     }
 

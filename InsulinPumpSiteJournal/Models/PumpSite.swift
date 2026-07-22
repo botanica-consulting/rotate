@@ -142,6 +142,54 @@ extension PumpSite {
         "lower-back-right",
     ]
 
+    // MARK: - CGM sensor track
+    //
+    // The sensor vertical reuses the pump catalog's geometry: its sites are a
+    // subset of the same entries (same IDs, marker centroids, and baked area
+    // paths in `SiteAreaCatalog`), so no new artwork is needed. Only the set of
+    // approved sensor sites differs — back of upper arm, abdomen, and upper
+    // buttock. Order is significant (the suggestion engine's stable tie-break):
+    // arm first (the primary site), then abdomen, then buttock.
+    static let cgmSiteIDs: [String] = [
+        "back-upper-arm-left",
+        "back-upper-arm-right",
+        "abdomen-left",
+        "abdomen-right",
+        "upper-buttock-left",
+        "upper-buttock-right",
+    ]
+
+    /// The sensor site catalog, derived from the shared `catalog` in
+    /// `cgmSiteIDs` order.
+    static let cgmCatalog: [PumpSite] = cgmSiteIDs.compactMap { id in
+        catalog.first { $0.id == id }
+    }
+
+    /// Starter sensor suggestions for an empty history: spread across the
+    /// three sensor regions.
+    static let cgmStarterSiteIDs: [String] = [
+        "back-upper-arm-left",
+        "abdomen-right",
+        "upper-buttock-left",
+        "back-upper-arm-right",
+    ]
+
+    /// The site catalog for a device track.
+    static func sites(for device: DeviceType) -> [PumpSite] {
+        switch device {
+        case .pump: catalog
+        case .cgm: cgmCatalog
+        }
+    }
+
+    /// The empty-history starter IDs for a device track.
+    static func starterSiteIDs(for device: DeviceType) -> [String] {
+        switch device {
+        case .pump: starterSiteIDs
+        case .cgm: cgmStarterSiteIDs
+        }
+    }
+
     private static let byID: [String: PumpSite] = Dictionary(
         uniqueKeysWithValues: catalog.map { ($0.id, $0) }
     )

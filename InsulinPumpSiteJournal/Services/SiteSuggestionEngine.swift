@@ -11,10 +11,11 @@ struct SiteSuggestionEngine {
         from sites: [PumpSite],
         history: [PlacementRecord],
         limit: Int = 4,
-        excluding: Set<String> = []
+        excluding: Set<String> = [],
+        starterSiteIDs: [String] = PumpSite.starterSiteIDs
     ) -> [PumpSite] {
         guard !history.isEmpty else {
-            let starters = PumpSite.starterSiteIDs
+            let starters = starterSiteIDs
                 .compactMap { id in sites.first { $0.id == id && !excluding.contains(id) } }
             if starters.count >= limit {
                 return Array(starters.prefix(limit))

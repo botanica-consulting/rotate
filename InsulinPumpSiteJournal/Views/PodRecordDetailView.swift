@@ -28,6 +28,7 @@ struct PodRecordDetailView: View {
                                 .frame(width: 80, height: 80)
                         }
                         VStack(alignment: .leading, spacing: 4) {
+                            DeviceChip(device: device)
                             Text(siteTitle)
                                 .font(.headline)
                             if stop == nil {
@@ -120,6 +121,10 @@ struct PodRecordDetailView: View {
         } catch {
             saveError = error
         }
+    }
+
+    private var device: DeviceType {
+        DeviceType(rawValue: record.deviceType) ?? .pump
     }
 
     private var site: PumpSite? {

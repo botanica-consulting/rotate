@@ -20,6 +20,10 @@ struct PlacementTimeline {
 
         var id: UUID { record.id }
 
+        /// Which rotation track this entry belongs to — used to tag rows in
+        /// the unified history list.
+        var deviceType: DeviceType { DeviceType(rawValue: record.deviceType) ?? .pump }
+
         var wear: TimeInterval? {
             stop.map { max(0, $0.timeIntervalSince(placedAt)) }
         }
@@ -31,6 +35,11 @@ struct PlacementTimeline {
     let current: Entry?
     /// Most recent use per canonical site ID.
     let lastUsedBySite: [String: Date]
+
+    /// Builds a timeline for a single device track, ignoring the other.
+    init(records: [PlacementRecord], deviceType: DeviceType) {
+        self.init(records: records.filter { $0.deviceType == deviceType.rawValue })
+    }
 
     init(records: [PlacementRecord]) {
         let sorted = records.sorted {
