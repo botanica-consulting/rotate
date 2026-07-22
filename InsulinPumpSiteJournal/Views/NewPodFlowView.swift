@@ -83,7 +83,7 @@ struct NewPodFlowView: View {
                             Button {
                                 finishPlacement(site, openCompanion: false)
                             } label: {
-                                Image(systemName: "xmark")
+                                Image(systemName: "checkmark")
                             }
                             .accessibilityLabel("Save and return to the app")
                             .accessibilityIdentifier("savePlacementButton")
