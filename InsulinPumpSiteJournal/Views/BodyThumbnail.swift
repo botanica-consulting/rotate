@@ -100,7 +100,14 @@ struct VignettedBodyThumbnail: View {
             }
             .overlay {
                 if let device {
+                    // The figure is zoomed by siteFocusZoom, so the fixed-size
+                    // badge would read too small; scale it up to keep the
+                    // Pod/sensor proportional to the enlarged body area. Tuned
+                    // below the full zoom because the card's base figure is
+                    // itself smaller than the body-map figure the badge is
+                    // sized against.
                     CurrentSiteBadge(device: device)
+                        .scaleEffect(AppTheme.currentBadgeCardScale)
                         .accessibilityHidden(true)
                 }
             }
