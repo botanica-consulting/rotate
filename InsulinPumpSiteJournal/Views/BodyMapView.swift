@@ -142,6 +142,7 @@ struct BodyMapView: View {
                 ZStack {
                     if isCurrent {
                         CurrentSiteBadge(device: selectedDevice)
+                        .scaleEffect(AppTheme.currentBadgeMapScale)
                     }
                     Color.clear
                         .frame(width: 44, height: 44)
@@ -169,6 +170,7 @@ struct BodyMapView: View {
             .overlay {
                 if isCurrent {
                     CurrentSiteBadge(device: selectedDevice)
+                        .scaleEffect(AppTheme.currentBadgeMapScale)
                 }
             }
             .frame(width: 20, height: 20)
@@ -200,7 +202,8 @@ struct BodyMapView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    legendRow(label: "Current site") { CurrentSiteBadge(device: selectedDevice) }
+                    legendRow(label: "Current site") { CurrentSiteBadge(device: selectedDevice)
+                        .scaleEffect(AppTheme.currentBadgeMapScale) }
                     legendRow(label: "Very recent (last 3 sites)") { swatch(fill: AppTheme.stale) }
                     legendRow(label: "Recent") { swatch(fill: AppTheme.recent) }
                     legendRow(label: "Relatively recent") { swatch(fill: AppTheme.aging) }

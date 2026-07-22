@@ -75,6 +75,9 @@ enum AppTheme {
     /// Pod/sensor stays proportional to the compact figure there, rather than
     /// looming over it (see VignettedBodyThumbnail).
     static let currentBadgeCardScale: CGFloat = 0.6
+    /// A gentle trim on the body-map markers so the Pod/sensor sits a touch
+    /// lighter on each area.
+    static let currentBadgeMapScale: CGFloat = 0.9
 
     /// Recency heat on Loop's freshness scale: rested gray → aging yellow →
     /// insulin orange → stale red (last 3 used sites). Tier meaning is
