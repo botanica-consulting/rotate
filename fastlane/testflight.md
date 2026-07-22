@@ -1,6 +1,6 @@
 # Using GitHub Actions + FastLane to deploy Rotate to TestFlight
 
-These instructions let you build **Rotate** (InsulinPumpSiteJournal) and install it via TestFlight without having access to a Mac. The process is intentionally identical to the [Loop "browser build"](https://loopkit.github.io/loopdocs/browser/bb-overview/) — if you have already built Loop this way, you already have all six Secrets and can reuse them as-is.
+These instructions let you build **Rotate (Pump/CGM Tracker)** and install it via TestFlight without having access to a Mac. The process is intentionally identical to the [Loop "browser build"](https://loopkit.github.io/loopdocs/browser/bb-overview/) — if you have already built Loop this way, you already have all six Secrets and can reuse them as-is.
 
 * You can install the app on phones using TestFlight that are not connected to your computer
 * You can send builds and updates to those you care for
@@ -77,7 +77,7 @@ A private `Match-Secrets` repository is automatically created under your GitHub 
 
 ## Setup the Repository
 
-1. Fork https://github.com/0xa10/pump-rotator into your GitHub username (or organization). Do not rename the repository.
+1. Fork https://github.com/botanica-consulting/rotate into your GitHub username (or organization). Do not rename the repository.
 1. If you are using an organization, do the secrets step at the organization level; otherwise at the repository level:
     * Go to Settings -> Secrets and variables -> Actions and make sure the Secrets tab is open
 1. For each of the following secrets, tap on "New organization secret" or "New repository secret", then add the name of the secret, along with the value you recorded for it:
@@ -112,7 +112,7 @@ This registers a single App ID with Apple:
 
 | NAME | IDENTIFIER |
 |-------|------------|
-| Rotate | com.TEAMID.insulinpumpsitejournal |
+| Rotate | com.TEAMID.rotate |
 
 (with `TEAMID` replaced by your team id). Rotate has no extensions, app groups, or special capabilities, so unlike Loop there is nothing to configure manually on the Apple Developer site.
 
@@ -124,7 +124,7 @@ If you have created the app in App Store Connect before, you can skip this secti
     * Select "iOS".
     * Select a name: this will have to be unique, so you may have to try a few different names here, but it will not be the name you see on your phone, so it's not that important.
     * Select your primary language.
-    * Choose the bundle ID that matches `com.TEAMID.insulinpumpsitejournal`, with TEAMID matching your team id.
+    * Choose the bundle ID that matches `com.TEAMID.rotate`, with TEAMID matching your team id.
     * SKU can be anything; e.g. "123".
     * Select "Full Access".
 1. Click Create

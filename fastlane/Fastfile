@@ -5,7 +5,7 @@
 # fastlane + match) process works the same way here. See fastlane/testflight.md.
 #
 # The bundle identifier is derived from the builder's Apple Developer TEAMID
-# (com.<TEAMID>.insulinpumpsitejournal) so that any fork can build under any
+# (com.<TEAMID>.rotate) so that any fork can build under any
 # team, exactly like Loop's com.<TEAMID>.loopkit.Loop pattern. The workflows
 # generate InsulinPumpSiteJournal.xcodeproj with XcodeGen before fastlane runs.
 
@@ -20,7 +20,7 @@ FASTLANE_ISSUER_ID = ENV["FASTLANE_ISSUER_ID"]
 FASTLANE_KEY = ENV["FASTLANE_KEY"]
 ENV["FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT"] = "120"
 
-BUNDLE_ID = "com.#{TEAMID}.insulinpumpsitejournal"
+BUNDLE_ID = "com.#{TEAMID}.rotate"
 PROJECT_PATH = "#{GITHUB_WORKSPACE}/InsulinPumpSiteJournal.xcodeproj"
 APP_TARGET = "InsulinPumpSiteJournal"
 
@@ -31,7 +31,7 @@ platform :ios do
   # Needs: TEAMID, FASTLANE_ISSUER_ID, FASTLANE_KEY_ID, FASTLANE_KEY_PATH
   # (see ~/.config/rotate-release.env). Uses the repo's own bundle id.
   # ---------------------------------------------------------------------
-  LOCAL_BUNDLE_ID = "io.github.0xa10.InsulinPumpSiteJournal"
+  LOCAL_BUNDLE_ID = "consulting.botanica.rotate"
   LOCAL_PROJECT = File.expand_path("../InsulinPumpSiteJournal.xcodeproj", __dir__)
 
   desc "Register the app's bundle id with Apple (local flow, one-time)"
