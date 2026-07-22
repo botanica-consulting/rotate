@@ -71,9 +71,10 @@ enum AppTheme {
     static let siteFocusZoom: CGFloat = 3.0
     static let vignetteInnerRatio: CGFloat = 0.28
     static let vignetteOuterRatio: CGFloat = 0.68
-    /// How much to enlarge the current-site badge on the vignetted card so it
-    /// stays proportional to the zoomed figure (see VignettedBodyThumbnail).
-    static let currentBadgeCardScale: CGFloat = 1.8
+    /// Scales the current-site badge down on the small vignetted card so the
+    /// Pod/sensor stays proportional to the compact figure there, rather than
+    /// looming over it (see VignettedBodyThumbnail).
+    static let currentBadgeCardScale: CGFloat = 0.6
 
     /// Recency heat on Loop's freshness scale: rested gray → aging yellow →
     /// insulin orange → stale red (last 3 used sites). Tier meaning is
