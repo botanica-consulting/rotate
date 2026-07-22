@@ -1,14 +1,15 @@
 import SwiftUI
 import SwiftData
 
-/// App settings: measurement units for placement guidance, the companion
-/// app the new-Pod flow hands off to, and the journal reset. The silhouette
-/// picker lives on the body map, next to the figures it changes.
+/// App settings: measurement units for placement guidance, the silhouette
+/// the body map renders, the companion app the new-Pod flow hands off to,
+/// and the journal reset.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @AppStorage(MeasurementUnit.storageKey) private var unitRaw = MeasurementUnit.system.rawValue
     @AppStorage(CompanionApp.storageKey) private var companionRaw = CompanionApp.loop.rawValue
+    @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
     @State private var confirmingReset = false
     /// Typed reset confirmation — the journal now syncs, so a reset reaches
     /// every device. Deleting requires typing RESET, not just a second tap.
@@ -29,6 +30,22 @@ struct SettingsView: View {
                     Text("Units")
                 } footer: {
                     Text("Used for placement guidance, like the minimum distance from your previous site.")
+                }
+
+                Section {
+                    Picker("Silhouette", selection: $bodyTypeRaw) {
+                        ForEach(BodyType.allCases) { type in
+                            Text(type.displayName)
+                                .accessibilityLabel("Silhouette \(type.displayName)")
+                                .tag(type.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("bodyTypePicker")
+                } header: {
+                    Text("Silhouette")
+                } footer: {
+                    Text("The figure shown on the body map and site previews.")
                 }
 
                 Section {

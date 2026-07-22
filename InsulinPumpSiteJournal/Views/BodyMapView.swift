@@ -1,8 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// A recency "heatmap" of every catalog site on the front and rear
-/// silhouettes, using the app-wide tier scale: red = last three used sites,
+/// A recency "heatmap" of every catalog site on the front and rear views of
+/// the silhouette chosen in Settings, using the app-wide tier scale: red =
+/// last three used sites,
 /// orange = recent, yellow = relatively recent, hollow = rested or never
 /// used. The current site carries a ring — state is never encoded by color
 /// alone (every marker also has a spoken description).
@@ -21,16 +22,6 @@ struct BodyMapView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    Picker("Silhouette", selection: $bodyTypeRaw) {
-                        ForEach(BodyType.allCases) { type in
-                            Text(type.displayName)
-                                .accessibilityLabel("Silhouette \(type.displayName)")
-                                .tag(type.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("bodyTypePicker")
-
                     HStack(alignment: .top, spacing: 24) {
                         mapFigure(for: .front, title: "Front")
                         mapFigure(for: .rear, title: "Rear")

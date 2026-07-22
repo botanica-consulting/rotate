@@ -1,10 +1,11 @@
 import SwiftUI
-import UIKit
 
 /// Shown inside the new-Pod flow after choosing a site: placement
 /// instructions, then the confirm-and-hand-off step. Nothing is saved until
 /// the primary button — confirming records the placement and continues in
-/// the companion app chosen in Settings, when it's installed.
+/// the companion app chosen in Settings. The label trusts the setting, not
+/// `canOpenURL` — that check proved unreliable on device, and opening is
+/// harmless when the companion is absent (the save still happens).
 struct LoopHandoffView: View {
     let site: PumpSite
     let onConfirm: () -> Void
@@ -21,9 +22,8 @@ struct LoopHandoffView: View {
         CompanionApp(rawValue: companionRaw) ?? .loop
     }
 
-    private var canOpenCompanion: Bool {
-        guard let url = companion.launchURL else { return false }
-        return UIApplication.shared.canOpenURL(url)
+    private var handsOffToCompanion: Bool {
+        companion.launchURL != nil
     }
 
     var body: some View {
@@ -66,7 +66,7 @@ struct LoopHandoffView: View {
                 Button {
                     onConfirm()
                 } label: {
-                    Text(canOpenCompanion
+                    Text(handsOffToCompanion
                         ? "Continue in \(companion.displayName)"
                         : "Pod is on — Save")
                         .frame(maxWidth: .infinity)
@@ -86,7 +86,7 @@ struct LoopHandoffView: View {
                 .controlSize(.large)
                 .accessibilityIdentifier("chooseAnotherSiteButton")
 
-                Text(canOpenCompanion
+                Text(handsOffToCompanion
                     ? "Continuing saves the placement and opens \(companion.displayName)."
                     : "Confirming saves the placement. Then open Loop to pair.")
                     .font(.footnote)
