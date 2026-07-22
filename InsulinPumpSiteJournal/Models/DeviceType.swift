@@ -42,4 +42,13 @@ enum DeviceType: String, CaseIterable, Identifiable {
         case .cgm: "Sensor"
         }
     }
+
+    /// Example prompts for the free-form notes field, worded per device: a Pod
+    /// can leak, a sensor can't — but it can misread or hurt.
+    var notesPlaceholder: String {
+        switch self {
+        case .pump: "Leaked, irritated skin, fell off early…"
+        case .cgm: "Bad readings, hurt, irritated skin, fell off early…"
+        }
+    }
 }

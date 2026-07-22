@@ -43,7 +43,7 @@ struct PlacementTimeline {
 
     init(records: [PlacementRecord]) {
         let sorted = records.sorted {
-            $0.placedAt == $1.placedAt ? $0.id.uuidString > $1.id.uuidString : $0.placedAt > $1.placedAt
+            Self.isNewer(placedAt: $0.placedAt, id: $0.id, than: $1.placedAt, id: $1.id)
         }
 
         var built: [Entry] = []
@@ -75,5 +75,23 @@ struct PlacementTimeline {
         let wears = entries.compactMap(\.wear)
         guard !wears.isEmpty else { return nil }
         return wears.reduce(0, +) / Double(wears.count)
+    }
+
+    /// Entries from every track, each with its stop resolved *within its own
+    /// track*, merged newest-first for the shared history list. Building one
+    /// merged timeline instead would infer an open placement's stop from the
+    /// next record in either track — so a device still on would look removed
+    /// the moment the other track got a newer placement. Per-track resolution
+    /// keeps every currently-worn device open.
+    static func combinedEntries(records: [PlacementRecord]) -> [Entry] {
+        DeviceType.allCases
+            .flatMap { PlacementTimeline(records: records, deviceType: $0).entries }
+            .sorted { isNewer(placedAt: $0.placedAt, id: $0.id, than: $1.placedAt, id: $1.id) }
+    }
+
+    /// Newest-first ordering: later placement first; ties broken by descending
+    /// id so the order is stable and total.
+    private static func isNewer(placedAt a: Date, id aID: UUID, than b: Date, id bID: UUID) -> Bool {
+        a == b ? aID.uuidString > bID.uuidString : a > b
     }
 }

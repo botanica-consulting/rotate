@@ -81,6 +81,33 @@ struct PlacementTimelineTests {
         #expect(older.stop == timeline.entries[0].placedAt)
     }
 
+    @Test func combinedEntriesKeepEveryTrackCurrentOpen() {
+        // A pump placed before the newest sensor is still on: resolving stops
+        // per-track must not close it just because the sensor is newer.
+        let pump = record("abdomen-left", daysAgo: 2)
+        let sensorRec = record("arm-left", daysAgo: 1)
+        sensorRec.deviceType = DeviceType.cgm.rawValue
+
+        let entries = PlacementTimeline.combinedEntries(records: [pump, sensorRec])
+
+        #expect(entries.map(\.id) == [sensorRec.id, pump.id])   // newest-first
+        #expect(entries.allSatisfy { $0.stop == nil })          // both still on
+    }
+
+    @Test func combinedEntriesInferStopsWithinTrack() throws {
+        // Two pump placements: the older one closes at the newer's start. An
+        // unrelated sensor in between must not become the older pump's stop.
+        let oldPump = record("abdomen-left", daysAgo: 4)
+        let sensor = record("arm-left", daysAgo: 3)
+        sensor.deviceType = DeviceType.cgm.rawValue
+        let newPump = record("abdomen-right", daysAgo: 2)
+
+        let entries = PlacementTimeline.combinedEntries(records: [oldPump, sensor, newPump])
+        let older = try #require(entries.first { $0.id == oldPump.id })
+
+        #expect(older.stop == newPump.placedAt)
+    }
+
     @Test func stopsNeverPrecedeStarts() {
         let placed = Date(timeIntervalSinceNow: -86_400)
         let corrupt = PlacementRecord(

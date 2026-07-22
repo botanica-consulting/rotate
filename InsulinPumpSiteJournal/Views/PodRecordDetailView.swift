@@ -32,7 +32,7 @@ struct PodRecordDetailView: View {
                             Text(siteTitle)
                                 .font(.headline)
                             if stop == nil {
-                                PodAgeCounter(placedAt: record.placedAt)
+                                PodAgeCounter(placedAt: record.placedAt, tint: AppTheme.tint(for: device))
                             }
                         }
                         Spacer()
@@ -52,7 +52,7 @@ struct PodRecordDetailView: View {
 
                 Section("Notes") {
                     TextField(
-                        "Leaked, irritated skin, fell off early…",
+                        device.notesPlaceholder,
                         text: $record.notes,
                         axis: .vertical
                     )

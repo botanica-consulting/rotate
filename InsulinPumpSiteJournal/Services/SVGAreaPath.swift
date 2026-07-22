@@ -143,13 +143,14 @@ struct DeviceChip: View {
     let device: DeviceType
 
     var body: some View {
+        let tint = AppTheme.tint(for: device)
         Text(device.displayName.uppercased())
             .font(.caption2.weight(.semibold))
             .tracking(0.5)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(tint)
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
-            .background(Capsule().fill(.quaternary))
+            .background(Capsule().fill(tint.opacity(0.15)))
             .accessibilityLabel(device.displayName)
     }
 }

@@ -24,9 +24,11 @@ struct HistoryHomeView: View {
     /// invalidating @State, so tracking it doesn't re-render every frame.
     @State private var scrollOffset = ScrollOffsetBox()
 
-    /// Unified timeline (both tracks) driving the shared history list.
-    private var timeline: PlacementTimeline {
-        PlacementTimeline(records: records)
+    /// The shared history list: every track's entries merged newest-first,
+    /// each with its stop resolved within its own track so both a currently-
+    /// worn pump and sensor read as still on (not one closing the other).
+    private var historyEntries: [PlacementTimeline.Entry] {
+        PlacementTimeline.combinedEntries(records: records)
     }
 
     /// Per-track timelines driving the two current cards and the per-device
@@ -80,7 +82,7 @@ struct HistoryHomeView: View {
             .sheet(item: $selectedRecord, onDismiss: performPendingDelete) { record in
                 PodRecordDetailView(
                     record: record,
-                    stop: timeline.entries.first { $0.id == record.id }?.stop,
+                    stop: historyEntries.first { $0.id == record.id }?.stop,
                     onDelete: { pendingDelete = record }
                 )
             }
@@ -100,10 +102,11 @@ struct HistoryHomeView: View {
         .fontDesign(.rounded)
     }
 
-    /// Both tracks are always one tap away — placing a new Pod and a new
-    /// sensor are independent actions, mirrored side by side.
+    /// Both tracks are always one tap away, stacked so neither crowds the
+    /// other: the pump — the more frequent placement — leads as the prominent
+    /// action, the sensor sits just below on lighter glass.
     private var newPlacementButtons: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 12) {
             newButton(for: .pump)
             newButton(for: .cgm)
         }
@@ -111,17 +114,30 @@ struct HistoryHomeView: View {
         .padding(.bottom, 8)
     }
 
+    @ViewBuilder
     private func newButton(for device: DeviceType) -> some View {
-        Button {
+        let button = Button {
             pendingNewDevice = device
         } label: {
             Label(device.newActionTitle, systemImage: "plus")
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glassProminent)
-        .tint(AppTheme.accent)
         .controlSize(.large)
         .accessibilityIdentifier(device == .pump ? "newPodButton" : "newSensorButton")
+
+        // The pump leads as the single prominent CTA; the sensor takes lighter
+        // tinted glass — the sensor teal keeps it clearly visible in both light
+        // and dark (plain glass washed out against the background) while still
+        // reading as secondary to the solid pump button.
+        if device == .pump {
+            button
+                .buttonStyle(.glassProminent)
+                .tint(AppTheme.accent)
+        } else {
+            button
+                .buttonStyle(.glass)
+                .tint(AppTheme.tint(for: .cgm))
+        }
     }
 
     private var emptyState: some View {
@@ -222,12 +238,12 @@ struct HistoryHomeView: View {
                     Text("Placed \(entry.placedAt.formatted(.relative(presentation: .named)))")
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.recent)
-                    PodAgeCounter(placedAt: entry.placedAt)
+                    PodAgeCounter(placedAt: entry.placedAt, tint: AppTheme.tint(for: device))
                         .padding(.top, 10)
                 }
                 Spacer()
                 if let site = PumpSite.site(for: entry.siteID) {
-                    VignettedBodyThumbnail(site: site, fill: AppTheme.recent)
+                    VignettedBodyThumbnail(site: site, fill: AppTheme.recent, device: device)
                         .frame(width: 96, height: 96)
                 }
             }
@@ -287,7 +303,7 @@ struct HistoryHomeView: View {
             sectionHeader("History")
 
             LazyVStack(spacing: 0) {
-                let entries = timeline.entries
+                let entries = historyEntries
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                     historyRow(for: entry, index: index)
                     if index < entries.count - 1 {
@@ -301,7 +317,7 @@ struct HistoryHomeView: View {
                     .fill(.thinMaterial)
             )
 
-            averagePodLife
+            averageWearStats
         }
         .padding(.horizontal)
         .padding(.top, 24)
@@ -334,7 +350,7 @@ struct HistoryHomeView: View {
                         .font(.system(.subheadline, design: .monospaced).weight(.medium))
                         .foregroundStyle(.secondary)
                 } else {
-                    PodAgeCounter(placedAt: entry.placedAt)
+                    PodAgeCounter(placedAt: entry.placedAt, tint: AppTheme.tint(for: entry.deviceType))
                 }
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
@@ -353,11 +369,14 @@ struct HistoryHomeView: View {
     }
 
     /// Average wear per track — the two verticals don't share a timeline, so
-    /// their averages are reported separately.
+    /// their averages are reported separately. Both tracks that have any
+    /// history are always shown side by side; a track shows "—" until one of
+    /// its placements has finished, so the pump and sensor stay paired.
     @ViewBuilder
-    private var averagePodLife: some View {
-        let stats = DeviceType.allCases.compactMap { device -> (DeviceType, TimeInterval)? in
-            timeline(for: device).averageWear.map { (device, $0) }
+    private var averageWearStats: some View {
+        let stats = DeviceType.allCases.compactMap { device -> (DeviceType, TimeInterval?)? in
+            let track = timeline(for: device)
+            return track.entries.isEmpty ? nil : (device, track.averageWear)
         }
         if !stats.isEmpty {
             HStack(spacing: 32) {
@@ -370,18 +389,19 @@ struct HistoryHomeView: View {
         }
     }
 
-    private func averageStat(for device: DeviceType, average: TimeInterval) -> some View {
-        let hours = Int((average / 3_600).rounded())
+    private func averageStat(for device: DeviceType, average: TimeInterval?) -> some View {
+        let hours = average.map { Int(($0 / 3_600).rounded()) }
         return VStack(spacing: 2) {
-            Text("\(hours)h")
+            Text(hours.map { "\($0)h" } ?? "—")
                 .font(.system(.title3, design: .monospaced).weight(.semibold))
-                .foregroundStyle(AppTheme.glucose)
+                .foregroundStyle(hours == nil ? Color.secondary : AppTheme.tint(for: device))
             Text("average \(device.noun) life")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Average \(device.noun) life: \(hours) hours")
+        .accessibilityLabel(hours.map { "Average \(device.noun) life: \($0) hours" }
+            ?? "No average \(device.noun) life yet")
     }
 
     // MARK: - Formatting

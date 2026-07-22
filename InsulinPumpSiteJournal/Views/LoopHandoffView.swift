@@ -12,12 +12,11 @@ struct LoopHandoffView: View {
     let onConfirm: () -> Void
     let onChooseAnother: () -> Void
 
-    @AppStorage(MeasurementUnit.storageKey) private var unitRaw = MeasurementUnit.system.rawValue
     @AppStorage(CompanionApp.storageKey) private var companionRaw = CompanionApp.loop.rawValue
 
-    private var unit: MeasurementUnit {
-        MeasurementUnit(rawValue: unitRaw) ?? .system
-    }
+    /// Placement distances always follow the device's measurement system —
+    /// there's no unit setting to override it.
+    private let unit: MeasurementUnit = .system
 
     private var companion: CompanionApp {
         CompanionApp(rawValue: companionRaw) ?? .loop

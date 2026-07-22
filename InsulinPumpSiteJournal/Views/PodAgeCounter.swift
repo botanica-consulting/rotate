@@ -6,13 +6,15 @@ import SwiftUI
 /// helpers are static and date-driven.
 struct PodAgeCounter: View {
     let placedAt: Date
+    /// Track tint for the readout; defaults to the pump's glucose blue.
+    var tint: Color = AppTheme.glucose
 
     var body: some View {
         TimelineView(.everyMinute) { context in
             Text(Self.text(at: context.date, since: placedAt))
                 .font(.system(.subheadline, design: .monospaced).weight(.medium))
                 .tracking(0.5)
-                .foregroundStyle(AppTheme.glucose)
+                .foregroundStyle(tint)
                 .contentTransition(.numericText())
         }
     }

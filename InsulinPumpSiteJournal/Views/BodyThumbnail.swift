@@ -74,6 +74,10 @@ struct BodyThumbnail: View {
 struct VignettedBodyThumbnail: View {
     let site: PumpSite
     let fill: Color
+    /// When set, marks the site with the same miniature device badge the body
+    /// map uses. The centered zoom lands the marker at the frame's center, so
+    /// the badge sits on the area with no extra positioning.
+    var device: DeviceType? = nil
 
     var body: some View {
         GeometryReader { geometry in
@@ -93,6 +97,12 @@ struct VignettedBodyThumbnail: View {
                     startRadius: side * AppTheme.vignetteInnerRatio,
                     endRadius: side * AppTheme.vignetteOuterRatio
                 )
+            }
+            .overlay {
+                if let device {
+                    CurrentSiteBadge(device: device)
+                        .accessibilityHidden(true)
+                }
             }
         }
     }

@@ -15,6 +15,27 @@ enum AppTheme {
             : UIColor(red: 0x00 / 255, green: 0xB0 / 255, blue: 0xFF / 255, alpha: 1)
     })
 
+    /// The sensor track's tint: a calm teal-green, tuned for legibility in
+    /// both appearances the same way `glucose` is. A different family from the
+    /// pump's blue and from the recency warning colors (yellow/orange/red), so
+    /// it distinguishes the track without ever reading as an alert.
+    static let sensor = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0x4A / 255, green: 0xD6 / 255, blue: 0xBE / 255, alpha: 1)
+            : UIColor(red: 0x00 / 255, green: 0xB8 / 255, blue: 0x9E / 255, alpha: 1)
+    })
+
+    /// Subtle per-track tint so the pump and sensor read as distinct at a
+    /// glance without shouting: the pump keeps Loop's glucose blue, the sensor
+    /// its teal-green. Used on the age counters, the track chips, and the
+    /// average-wear stats.
+    static func tint(for device: DeviceType) -> Color {
+        switch device {
+        case .pump: glucose
+        case .cgm: sensor
+        }
+    }
+
     /// Loop's insulin tint (systemOrange) — recent placements.
     static let recent = Color(.systemOrange)
 
