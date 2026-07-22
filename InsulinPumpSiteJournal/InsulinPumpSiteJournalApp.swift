@@ -87,7 +87,7 @@ struct AppRootView: View {
             try ModelContainer(
                 for: PlacementRecord.self,
                 configurations: ModelConfiguration(
-                    cloudKitDatabase: .private("iCloud.io.github.0xa10.InsulinPumpSiteJournal")
+                    cloudKitDatabase: .private("iCloud.consulting.botanica.rotate")
                 )
             )
         }

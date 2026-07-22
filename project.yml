@@ -1,6 +1,6 @@
 name: InsulinPumpSiteJournal
 options:
-  bundleIdPrefix: io.github.0xa10
+  bundleIdPrefix: consulting.botanica
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -33,12 +33,12 @@ targets:
       path: InsulinPumpSiteJournal/InsulinPumpSiteJournal.entitlements
       properties:
         com.apple.developer.icloud-container-identifiers:
-          - iCloud.io.github.0xa10.InsulinPumpSiteJournal
+          - iCloud.consulting.botanica.rotate
         com.apple.developer.icloud-services: [CloudKit]
         aps-environment: development
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xa10.InsulinPumpSiteJournal
+        PRODUCT_BUNDLE_IDENTIFIER: consulting.botanica.rotate
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: "YES"
@@ -70,7 +70,7 @@ targets:
       - target: InsulinPumpSiteJournal
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xa10.InsulinPumpSiteJournalTests
+        PRODUCT_BUNDLE_IDENTIFIER: consulting.botanica.rotate.tests
         GENERATE_INFOPLIST_FILE: "YES"
 
   InsulinPumpSiteJournalUITests:
@@ -81,7 +81,7 @@ targets:
       - target: InsulinPumpSiteJournal
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xa10.InsulinPumpSiteJournalUITests
+        PRODUCT_BUNDLE_IDENTIFIER: consulting.botanica.rotate.uitests
         GENERATE_INFOPLIST_FILE: "YES"
         # XCTestCase overrides nonisolated inits; MainActor default isolation breaks the subclass.
         SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
