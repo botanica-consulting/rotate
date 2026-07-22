@@ -58,7 +58,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Companion app")
                 } footer: {
-                    Text("Confirming a new Pod opens this app to activate and pair it. Loop is the only companion supported for now.")
+                    Text("Confirming a new placement opens this app to activate and pair it. Loop is the only companion supported for now.")
                 }
 
                 Section {

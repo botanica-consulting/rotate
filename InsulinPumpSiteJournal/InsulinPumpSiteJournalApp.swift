@@ -62,6 +62,17 @@ struct AppRootView: View {
                             notes: index == 2 ? "Leaked on day two — replaced early." : ""
                         ))
                     }
+                    // A parallel sensor track: newest still on, older ones worn
+                    // ~10 days each and spaced so they never overlap.
+                    for (index, site) in PumpSite.cgmCatalog.prefix(3).enumerated() {
+                        let placedAt = Date.now.addingTimeInterval(-Double(index) * 11 * 86_400 - 3 * 86_400)
+                        context.insert(PlacementRecord(
+                            siteID: site.id,
+                            placedAt: placedAt,
+                            removedAt: index == 0 ? nil : placedAt.addingTimeInterval(10 * 86_400),
+                            deviceType: DeviceType.cgm.rawValue
+                        ))
+                    }
                     try context.save()
                 }
                 return container

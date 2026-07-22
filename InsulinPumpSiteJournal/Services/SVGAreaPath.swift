@@ -102,6 +102,58 @@ struct PodBadge: View {
     }
 }
 
+/// A miniature white round sensor marking the CGM site currently in use. The
+/// round puck shape reads as a sensor at a glance, distinct from the pump's
+/// rounded-rectangle `PodBadge`. Fixed size for the same reason as PodBadge:
+/// it marks a position on a fixed-size figure and must not swallow its area.
+struct SensorBadge: View {
+    private let diameter: CGFloat = 18
+
+    var body: some View {
+        Circle()
+            .fill(Color.white)
+            .overlay(Circle().stroke(Color(.systemGray3), lineWidth: 1))
+            .overlay(
+                Circle()
+                    .fill(Color(.systemGray4))
+                    .frame(width: diameter * 0.34, height: diameter * 0.34)
+            )
+            .frame(width: diameter, height: diameter)
+            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+    }
+}
+
+/// The current-site marker for a device track: the Pod's rounded-rectangle or
+/// the sensor's round puck.
+struct CurrentSiteBadge: View {
+    let device: DeviceType
+
+    var body: some View {
+        switch device {
+        case .pump: PodBadge()
+        case .cgm: SensorBadge()
+        }
+    }
+}
+
+/// A compact text pill naming the device track (Pump / Sensor), so the two
+/// verticals stay distinguishable wherever their records share a surface (the
+/// unified history list, the record sheet).
+struct DeviceChip: View {
+    let device: DeviceType
+
+    var body: some View {
+        Text(device.displayName.uppercased())
+            .font(.caption2.weight(.semibold))
+            .tracking(0.5)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(.quaternary))
+            .accessibilityLabel(device.displayName)
+    }
+}
+
 /// Renders a `SiteArea` (path data in the silhouette's viewBox space) scaled
 /// into the given rect — which must be the silhouette image's fitted frame.
 struct SiteAreaShape: Shape {

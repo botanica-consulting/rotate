@@ -37,9 +37,19 @@ enum MeasurementUnit: String, CaseIterable, Identifiable {
         usesInches ? "2 inches" : "5 cm"
     }
 
-    /// The manufacturer's spacing guidance in the user's preferred units —
-    /// the one sentence every placement-instruction surface should show.
+    /// The spacing guidance in the user's preferred units — the one sentence
+    /// every placement-instruction surface shows, worded for the device track.
+    func spacingInstruction(for device: DeviceType) -> String {
+        switch device {
+        case .pump:
+            "Place the new Pod at least \(siteSpacingText) from your previous site and \(navelClearanceText) from your navel."
+        case .cgm:
+            "Place the new sensor at least \(siteSpacingText) from your last one, and away from any pump site."
+        }
+    }
+
+    /// Pump-track spacing guidance (kept for the pump placement surface).
     var spacingInstruction: String {
-        "Place the new Pod at least \(siteSpacingText) from your previous site and \(navelClearanceText) from your navel."
+        spacingInstruction(for: .pump)
     }
 }

@@ -7,6 +7,10 @@ import SwiftData
 /// confirms the Pod is on — abandoning the flow leaves the journal
 /// untouched.
 struct NewPodFlowView: View {
+    /// Which rotation track this flow records. Suggestions, the site catalog,
+    /// the instructions, and the saved record are all scoped to it.
+    var deviceType: DeviceType = .pump
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -37,6 +41,7 @@ struct NewPodFlowView: View {
                 if let pendingSite {
                     LoopHandoffView(
                         site: pendingSite,
+                        deviceType: deviceType,
                         onConfirm: { finishPlacement(pendingSite) },
                         onChooseAnother: chooseAnotherSite
                     )
@@ -154,8 +159,10 @@ struct NewPodFlowView: View {
         reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96))
     }
 
+    /// History for this device track only, newest first.
     private func fetchHistory() -> [PlacementRecord] {
-        (try? JournalStore(context: modelContext).history()) ?? []
+        let all = (try? JournalStore(context: modelContext).history()) ?? []
+        return all.filter { $0.deviceType == deviceType.rawValue }
     }
 
     private func loadSuggestionsIfNeeded() {
@@ -164,9 +171,10 @@ struct NewPodFlowView: View {
         lastUsedBySite = PlacementTimeline(records: history).lastUsedBySite
         recency = SiteRecencyModel(history: history)
         suggestions = SiteSuggestionEngine().suggestions(
-            from: PumpSite.catalog,
+            from: PumpSite.sites(for: deviceType),
             history: history,
-            excluding: recency.veryRecentSiteIDs
+            excluding: recency.veryRecentSiteIDs,
+            starterSiteIDs: PumpSite.starterSiteIDs(for: deviceType)
         )
         shownSiteIDs = Set(suggestions.map(\.id))
     }
@@ -180,16 +188,18 @@ struct NewPodFlowView: View {
         let offLimits = recency.veryRecentSiteIDs
 
         var next = engine.suggestions(
-            from: PumpSite.catalog,
+            from: PumpSite.sites(for: deviceType),
             history: history,
-            excluding: offLimits.union(shownSiteIDs)
+            excluding: offLimits.union(shownSiteIDs),
+            starterSiteIDs: PumpSite.starterSiteIDs(for: deviceType)
         )
         if next.count < 4 {
             // Pool exhausted — restart the rotation from the top.
             next = engine.suggestions(
-                from: PumpSite.catalog,
+                from: PumpSite.sites(for: deviceType),
                 history: history,
-                excluding: offLimits
+                excluding: offLimits,
+                starterSiteIDs: PumpSite.starterSiteIDs(for: deviceType)
             )
             shownSiteIDs = []
         }
@@ -205,7 +215,7 @@ struct NewPodFlowView: View {
     /// the user stays here.
     private func finishPlacement(_ site: PumpSite) {
         do {
-            try JournalStore(context: modelContext).startPlacement(siteID: site.id)
+            try JournalStore(context: modelContext).startPlacement(siteID: site.id, deviceType: deviceType)
             savedCount += 1
             if let url = CompanionApp(rawValue: companionRaw)?.launchURL {
                 openURL(url)

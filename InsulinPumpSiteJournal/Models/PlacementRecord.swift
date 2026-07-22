@@ -15,18 +15,24 @@ final class PlacementRecord {
     var removedAt: Date?
     /// Free-form journal notes for this wear ("leaked", "fell off", …).
     var notes: String = ""
+    /// Which rotation track this belongs to (`DeviceType` raw value). Defaults
+    /// to "pump" so existing records migrate cleanly (lightweight backfill) and
+    /// the CloudKit-compat rule — every property has a default — is preserved.
+    var deviceType: String = DeviceType.pump.rawValue
 
     init(
         id: UUID = UUID(),
         siteID: String,
         placedAt: Date = .now,
         removedAt: Date? = nil,
-        notes: String = ""
+        notes: String = "",
+        deviceType: String = DeviceType.pump.rawValue
     ) {
         self.id = id
         self.siteID = siteID
         self.placedAt = placedAt
         self.removedAt = removedAt
         self.notes = notes
+        self.deviceType = deviceType
     }
 }

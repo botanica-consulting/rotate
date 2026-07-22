@@ -12,6 +12,9 @@ struct BodyMapView: View {
     @Query(sort: \PlacementRecord.placedAt, order: .reverse)
     private var records: [PlacementRecord]
     @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
+    /// Which track's heatmap is shown. The pump and sensor maps have their own
+    /// sites, current marker, and recency coloring.
+    @State private var selectedDevice: DeviceType = .pump
     @State private var showingLegend = false
 
     private var bodyType: BodyType {
@@ -22,6 +25,14 @@ struct BodyMapView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    Picker("Track", selection: $selectedDevice) {
+                        ForEach(DeviceType.allCases) { device in
+                            Text(device.displayName).tag(device)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("deviceTypePicker")
+
                     HStack(alignment: .top, spacing: 24) {
                         mapFigure(for: .front, title: "Front")
                         mapFigure(for: .rear, title: "Rear")
@@ -65,21 +76,26 @@ struct BodyMapView: View {
 
     // MARK: Heat model
 
+    /// Only the selected track's records drive the map.
+    private var deviceRecords: [PlacementRecord] {
+        records.filter { $0.deviceType == selectedDevice.rawValue }
+    }
+
     private var timeline: PlacementTimeline {
-        PlacementTimeline(records: records)
+        PlacementTimeline(records: deviceRecords)
     }
 
     private var lastUsedBySite: [String: Date] {
         timeline.lastUsedBySite
     }
 
-    /// The Pod badge marks only a Pod that is actually on right now.
+    /// The badge marks only a device that is actually on right now.
     private var currentSiteID: String? {
         timeline.current?.siteID
     }
 
     private var recency: SiteRecencyModel {
-        SiteRecencyModel(history: records)
+        SiteRecencyModel(history: deviceRecords)
     }
 
     // MARK: Figures
@@ -92,7 +108,7 @@ struct BodyMapView: View {
                 .opacity(AppTheme.silhouetteOpacity)
                 .overlay {
                     GeometryReader { geometry in
-                        ForEach(PumpSite.catalog.filter { $0.bodyView == bodyView }) { site in
+                        ForEach(PumpSite.sites(for: selectedDevice).filter { $0.bodyView == bodyView }) { site in
                             if let area = SiteAreaCatalog.area(for: site.id, bodyType: bodyType) {
                                 areaOverlay(for: site, area: area, in: geometry)
                             } else {
@@ -125,7 +141,7 @@ struct BodyMapView: View {
             .overlay {
                 ZStack {
                     if isCurrent {
-                        PodBadge()
+                        CurrentSiteBadge(device: selectedDevice)
                     }
                     Color.clear
                         .frame(width: 44, height: 44)
@@ -152,7 +168,7 @@ struct BodyMapView: View {
             }
             .overlay {
                 if isCurrent {
-                    PodBadge()
+                    CurrentSiteBadge(device: selectedDevice)
                 }
             }
             .frame(width: 20, height: 20)
@@ -184,7 +200,7 @@ struct BodyMapView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    legendRow(label: "Current site") { PodBadge() }
+                    legendRow(label: "Current site") { CurrentSiteBadge(device: selectedDevice) }
                     legendRow(label: "Very recent (last 3 sites)") { swatch(fill: AppTheme.stale) }
                     legendRow(label: "Recent") { swatch(fill: AppTheme.recent) }
                     legendRow(label: "Relatively recent") { swatch(fill: AppTheme.aging) }
@@ -192,7 +208,7 @@ struct BodyMapView: View {
 
                     // Honest about what the colors mean: usage order, not a
                     // judgment of skin condition or tissue readiness.
-                    Text("Colors reflect usage order only — gray sites are simply the ones used least recently, not a guarantee the skin has recovered. The Pod marks the site in use now.")
+                    Text("Colors reflect usage order only — gray sites are simply the ones used least recently, not a guarantee the skin has recovered. The \(selectedDevice.noun) marks the site in use now.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .padding(.top, 8)

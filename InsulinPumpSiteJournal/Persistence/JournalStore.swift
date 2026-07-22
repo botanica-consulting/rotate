@@ -15,16 +15,22 @@ struct JournalStore {
         ))
     }
 
-    /// Atomically starts a new placement: every open record is closed at the
-    /// new start (never before its own start), then the new record begins.
-    /// Enforces "at most one open placement" and `removedAt >= placedAt`.
+    /// Atomically starts a new placement for one device track: every open
+    /// record of that same device is closed at the new start (never before its
+    /// own start), then the new record begins. Enforces "at most one open
+    /// placement per device" and `removedAt >= placedAt`. Placing a sensor
+    /// never closes an open Pod, and vice-versa.
     @discardableResult
-    func startPlacement(siteID: String, at now: Date = .now) throws -> PlacementRecord {
-        let open = try openRecords()
+    func startPlacement(
+        siteID: String,
+        deviceType: DeviceType = .pump,
+        at now: Date = .now
+    ) throws -> PlacementRecord {
+        let open = try openRecords(deviceType: deviceType)
         for record in open {
             record.removedAt = max(now, record.placedAt)
         }
-        let record = PlacementRecord(siteID: siteID, placedAt: now)
+        let record = PlacementRecord(siteID: siteID, placedAt: now, deviceType: deviceType.rawValue)
         context.insert(record)
         try saveOrRollback()
         return record
@@ -51,9 +57,10 @@ struct JournalStore {
         try saveOrRollback()
     }
 
-    private func openRecords() throws -> [PlacementRecord] {
-        try context.fetch(FetchDescriptor<PlacementRecord>(
-            predicate: #Predicate { $0.removedAt == nil }
+    private func openRecords(deviceType: DeviceType) throws -> [PlacementRecord] {
+        let raw = deviceType.rawValue
+        return try context.fetch(FetchDescriptor<PlacementRecord>(
+            predicate: #Predicate { $0.removedAt == nil && $0.deviceType == raw }
         ))
     }
 

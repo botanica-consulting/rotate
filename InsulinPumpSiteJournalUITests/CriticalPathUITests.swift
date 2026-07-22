@@ -84,6 +84,49 @@ final class CriticalPathUITests: XCTestCase {
     }
 
     @MainActor
+    func testNewSensorCriticalPath() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-reset"]
+        app.launch()
+
+        // The sensor track is a peer of the pump track: its own New button,
+        // its own flow, its own current card.
+        let newSensorButton = app.buttons["newSensorButton"]
+        XCTAssertTrue(newSensorButton.waitForExistence(timeout: 5))
+        newSensorButton.tap()
+
+        // Choose the first sensor suggestion and continue to instructions.
+        let firstCard = app.buttons["suggestionCard-0"]
+        XCTAssertTrue(firstCard.waitForExistence(timeout: 5))
+        firstCard.tap()
+        let confirmButton = app.buttons["confirmSiteButton"]
+        XCTAssertTrue(confirmButton.waitForExistence(timeout: 5))
+        confirmButton.tap()
+
+        // Sensor-specific instructions (no manufacturer named).
+        XCTAssertTrue(app.staticTexts["Place your sensor"].waitForExistence(timeout: 5))
+
+        // Confirm performs the save and the sensor becomes current — on its own
+        // card, independent of the pump track.
+        app.buttons["continueInLoopButton"].tap()
+        let sensorCard = app.buttons["currentSensorCard"]
+        XCTAssertTrue(sensorCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            sensorCard.label.localizedCaseInsensitiveContains("left upper arm"),
+            "sensor card should name the saved site, got: \(sensorCard.label)"
+        )
+
+        // The pump card remains in its empty state — placing a sensor never
+        // touched the pump track.
+        XCTAssertTrue(app.buttons["noPodCard"].waitForExistence(timeout: 5))
+
+        // The body map exposes the Pump/Sensor toggle.
+        app.buttons["bodyMapButton"].tap()
+        XCTAssertTrue(app.otherElements["deviceTypePicker"].waitForExistence(timeout: 5)
+            || app.segmentedControls["deviceTypePicker"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
         let predicate = NSPredicate(format: "exists == true AND hittable == true")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)

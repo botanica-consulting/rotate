@@ -10,7 +10,9 @@ struct HistoryHomeView: View {
     @Query(sort: \PlacementRecord.placedAt, order: .reverse)
     private var records: [PlacementRecord]
 
-    @State private var showingNewPod = false
+    /// Non-nil while the new-placement flow is open, carrying which track to
+    /// record.
+    @State private var pendingNewDevice: DeviceType?
     @State private var showingBodyMap = false
     @State private var showingSettings = false
     @State private var selectedRecord: PlacementRecord?
@@ -22,8 +24,15 @@ struct HistoryHomeView: View {
     /// invalidating @State, so tracking it doesn't re-render every frame.
     @State private var scrollOffset = ScrollOffsetBox()
 
+    /// Unified timeline (both tracks) driving the shared history list.
     private var timeline: PlacementTimeline {
         PlacementTimeline(records: records)
+    }
+
+    /// Per-track timelines driving the two current cards and the per-device
+    /// wear stats.
+    private func timeline(for device: DeviceType) -> PlacementTimeline {
+        PlacementTimeline(records: records, deviceType: device)
     }
 
     var body: some View {
@@ -36,7 +45,7 @@ struct HistoryHomeView: View {
                 } else {
                     pagedContent
                 }
-                newPodButton
+                newPlacementButtons
             }
             .background(AppBackground())
             .navigationTitle("Sites")
@@ -59,8 +68,8 @@ struct HistoryHomeView: View {
                     .accessibilityIdentifier("bodyMapButton")
                 }
             }
-            .fullScreenCover(isPresented: $showingNewPod) {
-                NewPodFlowView()
+            .fullScreenCover(item: $pendingNewDevice) { device in
+                NewPodFlowView(deviceType: device)
             }
             .sheet(isPresented: $showingBodyMap) {
                 BodyMapView()
@@ -91,19 +100,28 @@ struct HistoryHomeView: View {
         .fontDesign(.rounded)
     }
 
-    private var newPodButton: some View {
+    /// Both tracks are always one tap away — placing a new Pod and a new
+    /// sensor are independent actions, mirrored side by side.
+    private var newPlacementButtons: some View {
+        HStack(spacing: 12) {
+            newButton(for: .pump)
+            newButton(for: .cgm)
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+    }
+
+    private func newButton(for device: DeviceType) -> some View {
         Button {
-            showingNewPod = true
+            pendingNewDevice = device
         } label: {
-            Label("New Pod", systemImage: "plus")
+            Label(device.newActionTitle, systemImage: "plus")
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.glassProminent)
         .tint(AppTheme.accent)
         .controlSize(.large)
-        .padding(.horizontal)
-        .padding(.bottom, 8)
-        .accessibilityIdentifier("newPodButton")
+        .accessibilityIdentifier(device == .pump ? "newPodButton" : "newSensorButton")
     }
 
     private var emptyState: some View {
@@ -111,7 +129,7 @@ struct HistoryHomeView: View {
             ContentUnavailableView {
                 Label("No placements yet", systemImage: "figure.arms.open")
             } description: {
-                Text("Tap New Pod to record your first site.")
+                Text("Tap New Pod or New Sensor to record your first site.")
             }
             safetyFooter
                 .padding(.horizontal)
@@ -146,11 +164,8 @@ struct HistoryHomeView: View {
     private func heroPage(proxy: ScrollViewProxy) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Current")
-            if let current = timeline.current {
-                currentPodCard(for: current)
-            } else {
-                noPodCard
-            }
+            deviceCard(for: .pump)
+            deviceCard(for: .cgm)
             Spacer()
             Button {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
@@ -183,12 +198,25 @@ struct HistoryHomeView: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    private func currentPodCard(for entry: PlacementTimeline.Entry) -> some View {
+    /// One track's current card: the placement in use now, or the explicit
+    /// "nothing on" state that invites placing one.
+    @ViewBuilder
+    private func deviceCard(for device: DeviceType) -> some View {
+        let track = timeline(for: device)
+        if let current = track.current {
+            currentCard(for: current, device: device)
+        } else {
+            noDeviceCard(for: device, timeline: track)
+        }
+    }
+
+    private func currentCard(for entry: PlacementTimeline.Entry, device: DeviceType) -> some View {
         Button {
             selectedRecord = entry.record
         } label: {
             HStack(alignment: .bottom, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
+                    DeviceChip(device: device)
                     Text(siteTitle(for: entry))
                         .font(.title3.weight(.semibold))
                     Text("Placed \(entry.placedAt.formatted(.relative(presentation: .named)))")
@@ -214,35 +242,44 @@ struct HistoryHomeView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(
-            "Current site: \(siteTitle(for: entry)), on for \(PodAgeCounter.spokenText(at: .now, since: entry.placedAt)), placed \(absoluteDate(entry.placedAt))"
+            "Current \(device.displayName.lowercased()) site: \(siteTitle(for: entry)), on for \(PodAgeCounter.spokenText(at: .now, since: entry.placedAt)), placed \(absoluteDate(entry.placedAt))"
         )
-        .accessibilityHint("Opens this Pod's record to review times or add notes.")
-        .accessibilityIdentifier("currentPodCard")
+        .accessibilityHint("Opens this \(device.noun)'s record to review times or add notes.")
+        .accessibilityIdentifier(device == .pump ? "currentPodCard" : "currentSensorCard")
     }
 
-    /// The valid in-between state: history exists, but the newest Pod has a
-    /// removal time and nothing has replaced it yet.
-    private var noPodCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("No Pod on")
-                .font(.title3.weight(.semibold))
-            if let last = timeline.entries.first, let stop = last.stop {
-                Text("Last site: \(siteTitle(for: last)), removed \(absoluteDate(stop))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+    /// The "nothing on" state for a track: either history exists but the newest
+    /// placement has come off, or this track has never been used. Tapping it
+    /// starts a new placement for that device.
+    private func noDeviceCard(for device: DeviceType, timeline: PlacementTimeline) -> some View {
+        Button {
+            pendingNewDevice = device
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                DeviceChip(device: device)
+                Text("No \(device.noun) on")
+                    .font(.title3.weight(.semibold))
+                if let last = timeline.entries.first, let stop = last.stop {
+                    Text("Last site: \(siteTitle(for: last)), removed \(absoluteDate(stop))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Text("Tap to place your next one.")
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.accent)
             }
-            Text("Tap New Pod when you place your next one.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius)
+                    .fill(.thinMaterial)
+            )
+            .contentShape(.rect(cornerRadius: AppTheme.cardCornerRadius))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius)
-                .fill(.thinMaterial)
-        )
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("noPodCard")
+        .accessibilityHint("Starts a new \(device.noun) placement.")
+        .accessibilityIdentifier(device == .pump ? "noPodCard" : "noSensorCard")
     }
 
     private var historyPage: some View {
@@ -278,6 +315,7 @@ struct HistoryHomeView: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
+                        DeviceChip(device: entry.deviceType)
                         Text(siteTitle(for: entry))
                             .font(.body.weight(.medium))
                         if !entry.record.notes.isEmpty {
@@ -314,23 +352,36 @@ struct HistoryHomeView: View {
         .accessibilityIdentifier("historyRow-\(index)")
     }
 
+    /// Average wear per track — the two verticals don't share a timeline, so
+    /// their averages are reported separately.
     @ViewBuilder
     private var averagePodLife: some View {
-        if let average = timeline.averageWear {
-            let text = "\(Int((average / 3_600).rounded()))h"
-            VStack(spacing: 2) {
-                Text(text)
-                    .font(.system(.title3, design: .monospaced).weight(.semibold))
-                    .foregroundStyle(AppTheme.glucose)
-                Text("average Pod life")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+        let stats = DeviceType.allCases.compactMap { device -> (DeviceType, TimeInterval)? in
+            timeline(for: device).averageWear.map { (device, $0) }
+        }
+        if !stats.isEmpty {
+            HStack(spacing: 32) {
+                ForEach(stats, id: \.0) { device, average in
+                    averageStat(for: device, average: average)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 8)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Average Pod life: \(text.dropLast()) hours")
         }
+    }
+
+    private func averageStat(for device: DeviceType, average: TimeInterval) -> some View {
+        let hours = Int((average / 3_600).rounded())
+        return VStack(spacing: 2) {
+            Text("\(hours)h")
+                .font(.system(.title3, design: .monospaced).weight(.semibold))
+                .foregroundStyle(AppTheme.glucose)
+            Text("average \(device.noun) life")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Average \(device.noun) life: \(hours) hours")
     }
 
     // MARK: - Formatting
@@ -342,7 +393,7 @@ struct HistoryHomeView: View {
     }
 
     private func rowAccessibilityLabel(for entry: PlacementTimeline.Entry) -> String {
-        var parts = ["\(siteTitle(for: entry)), placed \(absoluteDate(entry.placedAt))"]
+        var parts = ["\(entry.deviceType.displayName), \(siteTitle(for: entry)), placed \(absoluteDate(entry.placedAt))"]
         if let stop = entry.stop {
             parts.append("removed \(absoluteDate(stop))")
             parts.append("worn \(PodAgeCounter.spokenText(at: stop, since: entry.placedAt))")
