@@ -49,9 +49,17 @@ enum AppTheme {
     /// Loop's stale/critical color (systemRed) — the last three used sites.
     static let stale = Color(.systemRed)
 
-    /// Rested areas: a neutral shade deeper than the bare silhouette so
-    /// rested regions read as distinct, available real estate.
-    static let restedShade = Color(.systemGray2)
+    /// Rested areas: a neutral shade set apart from the bare silhouette so
+    /// rested regions read as distinct, available real estate. The
+    /// relationship flips by appearance: in light mode a gray *deeper* than
+    /// the faint silhouette reads as distinct; in dark mode a deeper shade
+    /// would just merge into the dark body, so a *lighter* gray stands out
+    /// instead.
+    static let restedShade = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? .systemGray       // lighter than the dark silhouette
+            : .systemGray2      // deeper than the faint silhouette
+    })
 
     // Mounting-area treatment. Every surface that draws an area uses these
     // same parameters, so the rendering is identical at each location and
