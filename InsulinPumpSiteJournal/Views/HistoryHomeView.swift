@@ -235,9 +235,13 @@ struct HistoryHomeView: View {
                     DeviceChip(device: device)
                     Text(siteTitle(for: entry))
                         .font(.title3.weight(.semibold))
-                    Text("Placed \(entry.placedAt.formatted(.relative(presentation: .named)))")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.recent)
+                    // Recomputed each minute (and on return to foreground) so
+                    // "Placed yesterday" stays current without relaunching.
+                    TimelineView(.everyMinute) { _ in
+                        Text("Placed \(entry.placedAt.formatted(.relative(presentation: .named)))")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.recent)
+                    }
                     PodAgeCounter(placedAt: entry.placedAt, tint: AppTheme.tint(for: device))
                         .padding(.top, 10)
                 }
@@ -395,13 +399,13 @@ struct HistoryHomeView: View {
             Text(hours.map { "\($0)h" } ?? "—")
                 .font(.system(.title3, design: .monospaced).weight(.semibold))
                 .foregroundStyle(hours == nil ? Color.secondary : AppTheme.tint(for: device))
-            Text("average \(device.noun) life")
+            Text("average \(device.noun.lowercased()) life")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(hours.map { "Average \(device.noun) life: \($0) hours" }
-            ?? "No average \(device.noun) life yet")
+        .accessibilityLabel(hours.map { "Average \(device.noun.lowercased()) life: \($0) hours" }
+            ?? "No average \(device.noun.lowercased()) life yet")
     }
 
     // MARK: - Formatting
