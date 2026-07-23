@@ -99,13 +99,13 @@ struct SettingsView: View {
     private var companionSection: some View {
         Section {
             Picker("Pump", selection: $pumpCompanionRaw) {
-                ForEach(CompanionApp.allCases) { app in
+                ForEach(CompanionApp.options(for: .pump)) { app in
                     Text(app.displayName).tag(app.rawValue)
                 }
             }
             .accessibilityIdentifier("pumpCompanionPicker")
             Picker("Sensor", selection: $sensorCompanionRaw) {
-                ForEach(CompanionApp.allCases) { app in
+                ForEach(CompanionApp.options(for: .cgm)) { app in
                     Text(app.displayName).tag(app.rawValue)
                 }
             }
