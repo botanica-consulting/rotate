@@ -7,7 +7,8 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(CompanionApp.storageKey) private var companionRaw = CompanionApp.loop.rawValue
+    @AppStorage(CompanionApp.storageKey(for: .pump)) private var pumpCompanionRaw = CompanionApp.loop.rawValue
+    @AppStorage(CompanionApp.storageKey(for: .cgm)) private var sensorCompanionRaw = CompanionApp.loop.rawValue
     @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
     @State private var confirmingReset = false
     /// Typed reset confirmation — the journal now syncs, so a reset reaches
@@ -97,16 +98,22 @@ struct SettingsView: View {
     @ViewBuilder
     private var companionSection: some View {
         Section {
-            Picker("Continue in", selection: $companionRaw) {
+            Picker("Pump", selection: $pumpCompanionRaw) {
                 ForEach(CompanionApp.allCases) { app in
                     Text(app.displayName).tag(app.rawValue)
                 }
             }
-            .accessibilityIdentifier("companionAppPicker")
+            .accessibilityIdentifier("pumpCompanionPicker")
+            Picker("Sensor", selection: $sensorCompanionRaw) {
+                ForEach(CompanionApp.allCases) { app in
+                    Text(app.displayName).tag(app.rawValue)
+                }
+            }
+            .accessibilityIdentifier("sensorCompanionPicker")
         } header: {
-            Text("Companion app")
+            Text("Companion apps")
         } footer: {
-            Text("If set, confirming a new placement opens this app to activate and pair it. Choose None to keep everything in Rotate.")
+            Text("Confirming a placement opens that track's app to activate and pair it — the pump and sensor can differ. Choose None to keep everything in Rotate.")
         }
     }
 

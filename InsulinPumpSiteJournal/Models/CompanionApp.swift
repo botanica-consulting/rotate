@@ -13,7 +13,12 @@ enum CompanionApp: String, CaseIterable, Identifiable {
     case none
     case loop
 
-    static let storageKey = "companionApp"
+    /// Companion is chosen per track — a pump and a sensor may hand off to
+    /// different apps (or none). Keyed by device so the two settings are
+    /// independent.
+    static func storageKey(for device: DeviceType) -> String {
+        "companionApp-\(device.rawValue)"
+    }
 
     var id: String { rawValue }
 

@@ -35,8 +35,6 @@ struct NewPodFlowView: View {
     @State private var isSaving = false
     @State private var saveError: Error?
 
-    @AppStorage(CompanionApp.storageKey) private var companionRaw = CompanionApp.loop.rawValue
-
     /// Shuffle can only offer a genuinely different set when the track's
     /// catalog is at least two deals deep; small tracks (CGM) can't, so the
     /// affordance is hidden there rather than re-dealing the same sites.
@@ -243,6 +241,9 @@ struct NewPodFlowView: View {
         do {
             try JournalStore(context: modelContext).startPlacement(siteID: site.id, deviceType: deviceType)
             savedCount += 1
+            // Hand off to this track's own companion (pump and sensor differ).
+            let companionRaw = UserDefaults.standard.string(forKey: CompanionApp.storageKey(for: deviceType))
+                ?? CompanionApp.loop.rawValue
             if openCompanion, let url = CompanionApp(rawValue: companionRaw)?.launchURL {
                 openURL(url)
             }

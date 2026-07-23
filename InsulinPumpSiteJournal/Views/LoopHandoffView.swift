@@ -8,10 +8,22 @@ import SwiftUI
 /// harmless when the companion is absent (the save still happens).
 struct LoopHandoffView: View {
     let site: PumpSite
-    var deviceType: DeviceType = .pump
+    let deviceType: DeviceType
     let onConfirm: () -> Void
 
-    @AppStorage(CompanionApp.storageKey) private var companionRaw = CompanionApp.loop.rawValue
+    /// The companion for *this* track — pump and sensor are set separately, so
+    /// the AppStorage key is device-specific and bound in init.
+    @AppStorage private var companionRaw: String
+
+    init(site: PumpSite, deviceType: DeviceType = .pump, onConfirm: @escaping () -> Void) {
+        self.site = site
+        self.deviceType = deviceType
+        self.onConfirm = onConfirm
+        self._companionRaw = AppStorage(
+            wrappedValue: CompanionApp.loop.rawValue,
+            CompanionApp.storageKey(for: deviceType)
+        )
+    }
 
     /// Placement distances always follow the device's measurement system —
     /// there's no unit setting to override it.
