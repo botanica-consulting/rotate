@@ -28,7 +28,9 @@ struct LoopHandoffView: View {
     /// Where the last step tells the user to go to activate the device — the
     /// chosen companion by name, or a neutral phrase when none is set.
     private var activationTarget: String {
-        handsOffToCompanion ? companion.displayName : (deviceType == .pump ? "Loop" : "your sensor app")
+        // With no companion set, don't name Loop — point at a neutral app so
+        // the step matches the "…is on — Save" button (which opens nothing).
+        handsOffToCompanion ? companion.displayName : (deviceType == .pump ? "your pump app" : "your sensor app")
     }
 
     var body: some View {

@@ -20,8 +20,8 @@ struct SiteSuggestionEngine {
             if starters.count >= limit {
                 return Array(starters.prefix(limit))
             }
-            // Excluded starters (e.g. after a shuffle) are replaced from the
-            // remaining catalog, keeping region diversity via the main path.
+            // Excluded starters (e.g. after a shuffle on an empty journal) are
+            // backfilled from the remaining catalog in order.
             var result = starters
             for site in sites where result.count < limit {
                 if !excluding.contains(site.id), !result.contains(site) {

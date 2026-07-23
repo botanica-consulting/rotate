@@ -41,6 +41,10 @@ struct PlacementTimeline {
         self.init(records: records.filter { $0.deviceType == deviceType.rawValue })
     }
 
+    /// Resolves stops and `current` across *all* passed records as one track.
+    /// Callers must pass a single device's records (use `init(records:deviceType:)`
+    /// or `combinedEntries` for mixed data) — otherwise one track's newer
+    /// placement would wrongly close the other's open one.
     init(records: [PlacementRecord]) {
         let sorted = records.sorted {
             Self.isNewer(placedAt: $0.placedAt, id: $0.id, than: $1.placedAt, id: $1.id)
@@ -84,8 +88,12 @@ struct PlacementTimeline {
     /// the moment the other track got a newer placement. Per-track resolution
     /// keeps every currently-worn device open.
     static func combinedEntries(records: [PlacementRecord]) -> [Entry] {
-        DeviceType.allCases
-            .flatMap { PlacementTimeline(records: records, deviceType: $0).entries }
+        // Group by resolved track — an unknown/legacy deviceType buckets to
+        // .pump, matching Entry.deviceType — so no record is dropped, and
+        // resolve stops within each track.
+        Dictionary(grouping: records) { DeviceType(rawValue: $0.deviceType) ?? .pump }
+            .values
+            .flatMap { PlacementTimeline(records: $0).entries }
             .sorted { isNewer(placedAt: $0.placedAt, id: $0.id, than: $1.placedAt, id: $1.id) }
     }
 

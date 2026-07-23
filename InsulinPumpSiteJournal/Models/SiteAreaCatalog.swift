@@ -12,7 +12,9 @@ struct SiteArea: Hashable {
 
 enum SiteAreaCatalog {
     static func area(for siteID: String, bodyType: BodyType) -> SiteArea? {
-        areas[bodyType.rawValue]?[siteID]
+        // Canonicalize at this boundary like PumpSite.site(for:), so a legacy
+        // or stored ID still resolves to its artwork.
+        areas[bodyType.rawValue]?[SiteID.canonical(siteID)]
     }
 
     static let areas: [String: [String: SiteArea]] = [

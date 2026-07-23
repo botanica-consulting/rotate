@@ -29,9 +29,9 @@ struct BodyThumbnail: View {
                     if let area = SiteAreaCatalog.area(for: site.id, bodyType: bodyType) {
                         SiteAreaHighlight(area: area, fill: fill, displayScale: zoom)
                     } else {
-                        // No area asset for this body type yet: dot fallback.
-                        // Sized against the zoom so the dot stays 18pt on
-                        // screen however far the figure is scaled up.
+                        // Defensive dot fallback for a site with no area asset
+                        // (every catalog site currently has one). Sized against
+                        // the zoom so the dot stays 18pt however far it scales.
                         Circle()
                             .fill(fill)
                             .overlay(Circle().stroke(.background, lineWidth: 2 / zoom))

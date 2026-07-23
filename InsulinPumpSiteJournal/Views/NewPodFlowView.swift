@@ -17,6 +17,9 @@ struct NewPodFlowView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    /// How many suggestion cards a deal shows (also the engine's limit).
+    private static let suggestionCount = 4
+
     @State private var suggestions: [PumpSite] = []
     @State private var lastUsedBySite: [String: Date] = [:]
     @State private var recency = SiteRecencyModel(history: [])
@@ -25,9 +28,21 @@ struct NewPodFlowView: View {
     /// Site being placed on the instruction screen — not yet saved.
     @State private var pendingSite: PumpSite?
     @State private var savedCount = 0
+    /// Bumps once per Shuffle so the haptic fires on shuffle only, not on the
+    /// initial load.
+    @State private var shuffleCount = 0
+    /// Guards the single save so a fast double-tap can't record twice.
+    @State private var isSaving = false
     @State private var saveError: Error?
 
     @AppStorage(CompanionApp.storageKey) private var companionRaw = CompanionApp.loop.rawValue
+
+    /// Shuffle can only offer a genuinely different set when the track's
+    /// catalog is at least two deals deep; small tracks (CGM) can't, so the
+    /// affordance is hidden there rather than re-dealing the same sites.
+    private var canShuffle: Bool {
+        PumpSite.sites(for: deviceType).count >= Self.suggestionCount * 2
+    }
 
     /// One column at accessibility text sizes so card content never crams.
     private var columns: [GridItem] {
@@ -46,15 +61,17 @@ struct NewPodFlowView: View {
                 )
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            shuffle()
-                        } label: {
-                            Image(systemName: "shuffle")
+                    if canShuffle {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button {
+                                shuffle()
+                            } label: {
+                                Image(systemName: "shuffle")
+                            }
+                            .accessibilityLabel("Shuffle suggestions")
+                            .accessibilityHint("Shows a different set of sites, including recently rested ones.")
+                            .accessibilityIdentifier("shuffleButton")
                         }
-                        .accessibilityLabel("Shuffle suggestions")
-                        .accessibilityHint("Shows a different set of sites, including recently rested ones.")
-                        .accessibilityIdentifier("shuffleButton")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
@@ -92,7 +109,7 @@ struct NewPodFlowView: View {
                 }
         }
         .sensoryFeedback(.selection, trigger: selectedSite)
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: shownSiteIDs)
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: shuffleCount)
         .sensoryFeedback(.success, trigger: savedCount) { _, newValue in
             newValue > 0
         }
@@ -174,6 +191,7 @@ struct NewPodFlowView: View {
         suggestions = SiteSuggestionEngine().suggestions(
             from: PumpSite.sites(for: deviceType),
             history: history,
+            limit: Self.suggestionCount,
             excluding: recency.veryRecentSiteIDs,
             starterSiteIDs: PumpSite.starterSiteIDs(for: deviceType)
         )
@@ -191,14 +209,16 @@ struct NewPodFlowView: View {
         var next = engine.suggestions(
             from: PumpSite.sites(for: deviceType),
             history: history,
+            limit: Self.suggestionCount,
             excluding: offLimits.union(shownSiteIDs),
             starterSiteIDs: PumpSite.starterSiteIDs(for: deviceType)
         )
-        if next.count < 4 {
+        if next.count < Self.suggestionCount {
             // Pool exhausted — restart the rotation from the top.
             next = engine.suggestions(
                 from: PumpSite.sites(for: deviceType),
                 history: history,
+                limit: Self.suggestionCount,
                 excluding: offLimits,
                 starterSiteIDs: PumpSite.starterSiteIDs(for: deviceType)
             )
@@ -209,13 +229,17 @@ struct NewPodFlowView: View {
             selectedSite = nil
         }
         shownSiteIDs.formUnion(next.map(\.id))
+        shuffleCount += 1
     }
 
     /// The one write in the flow: atomically closes the previous Pod and
     /// records the new placement. On failure the journal is untouched and
     /// the user stays here. `openCompanion` hands off to the companion app
-    /// (the primary "Continue" button); the X saves without leaving the app.
+    /// (the primary "Continue" button); the checkmark saves without leaving
+    /// the app. Guarded so a fast double-tap can't record two placements.
     private func finishPlacement(_ site: PumpSite, openCompanion: Bool) {
+        guard !isSaving else { return }
+        isSaving = true
         do {
             try JournalStore(context: modelContext).startPlacement(siteID: site.id, deviceType: deviceType)
             savedCount += 1
@@ -224,6 +248,7 @@ struct NewPodFlowView: View {
             }
             dismiss()
         } catch {
+            isSaving = false
             saveError = error
         }
     }

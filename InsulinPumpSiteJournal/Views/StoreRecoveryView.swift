@@ -33,6 +33,7 @@ struct StoreRecoveryView: View {
             .accessibilityIdentifier("resetStoreButton")
         }
         .padding()
+        .fontDesign(.rounded)
         .confirmationDialog(
             "Delete the data store?",
             isPresented: $confirmingReset,
@@ -43,7 +44,7 @@ struct StoreRecoveryView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This permanently deletes every Pod record on this device.")
+            Text("This permanently deletes every placement record on this device.")
         }
     }
 }

@@ -52,6 +52,11 @@ enum SVGPathParser {
                 path.addCurve(to: point, control1: control1, control2: control2)
                 current = point
             default:
+                // The area assets use only absolute M/L/C/Z. Anything else
+                // (H, V, S, Q, T, A, or shorthand) would truncate the path
+                // silently — surface it in debug builds so a bad asset is
+                // caught, but still return what parsed in release.
+                assertionFailure("SVGPathParser: unsupported command '\(command)'")
                 return path
             }
         }

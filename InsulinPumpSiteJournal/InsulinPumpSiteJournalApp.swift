@@ -84,19 +84,20 @@ struct AppRootView: View {
         // store still opens and works locally, and mirroring resumes when
         // an account appears.
         return Result {
-            try ModelContainer(
-                for: PlacementRecord.self,
-                configurations: ModelConfiguration(
-                    cloudKitDatabase: .private("iCloud.consulting.botanica.rotate")
-                )
-            )
+            try ModelContainer(for: PlacementRecord.self, configurations: storeConfiguration())
         }
+    }
+
+    /// The live store's configuration — shared so container creation and
+    /// `deleteStoreFiles()` always resolve the same store URL.
+    private static func storeConfiguration() -> ModelConfiguration {
+        ModelConfiguration(cloudKitDatabase: .private("iCloud.consulting.botanica.rotate"))
     }
 
     /// Last-resort recovery: remove the store files (and SQLite sidecars) so
     /// the next attempt starts from an empty journal.
     private static func deleteStoreFiles() {
-        let storeURL = ModelConfiguration().url
+        let storeURL = storeConfiguration().url
         for suffix in ["", "-wal", "-shm"] {
             try? FileManager.default.removeItem(
                 at: URL(fileURLWithPath: storeURL.path + suffix)

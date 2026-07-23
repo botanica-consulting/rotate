@@ -51,7 +51,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Companion app")
                 } footer: {
-                    Text("Confirming a new placement opens this app to activate and pair it. Loop is the only companion supported for now.")
+                    Text("If set, confirming a new placement opens this app to activate and pair it. Choose None to keep everything in Rotate.")
                 }
 
                 Section {
@@ -60,7 +60,7 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("resetJournalButton")
                 } footer: {
-                    Text("Deletes every Pod record, here and from iCloud on your other devices. Settings are kept.")
+                    Text("Deletes every placement record — pump and sensor — here and from iCloud on your other devices. Settings are kept.")
                 }
 
                 Section {
@@ -69,7 +69,7 @@ struct SettingsView: View {
                 }
             }
             .alert(
-                "Delete all Pod records?",
+                "Delete all placement records?",
                 isPresented: $confirmingReset
             ) {
                 TextField("Type RESET to confirm", text: $resetConfirmationText)

@@ -218,7 +218,6 @@ struct BodyMapView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
-                .accessibilityElement(children: .combine)
             }
             .navigationTitle("Reading the map")
             .navigationBarTitleDisplayMode(.inline)

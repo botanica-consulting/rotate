@@ -1,44 +1,22 @@
 import Foundation
 
-/// How placement distances are shown. Defaults to the device's measurement
-/// system; the user can pin inches or centimeters in Settings.
-enum MeasurementUnit: String, CaseIterable, Identifiable {
+/// Placement distances always follow the device's measurement system —
+/// inches in the US, centimeters elsewhere. There's no user-facing override
+/// (the distances setting was removed), so this has a single case.
+enum MeasurementUnit {
     case system
-    case inches
-    case centimeters
 
-    static let storageKey = "measurementUnit"
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .system: "Match device"
-        case .inches: "Inches"
-        case .centimeters: "Centimeters"
-        }
-    }
-
-    var usesInches: Bool {
-        switch self {
-        case .inches: true
-        case .centimeters: false
-        case .system: Locale.current.measurementSystem == .us
-        }
-    }
+    /// Whether to phrase distances in inches (US) or centimeters.
+    var usesInches: Bool { Locale.current.measurementSystem == .us }
 
     /// Minimum spacing from the previous site (1 in / 2.5 cm, per Insulet).
-    var siteSpacingText: String {
-        usesInches ? "1 inch" : "2.5 cm"
-    }
+    var siteSpacingText: String { usesInches ? "1 inch" : "2.5 cm" }
 
     /// Minimum clearance from the navel (2 in / 5 cm, per Insulet).
-    var navelClearanceText: String {
-        usesInches ? "2 inches" : "5 cm"
-    }
+    var navelClearanceText: String { usesInches ? "2 inches" : "5 cm" }
 
-    /// The spacing guidance in the user's preferred units — the one sentence
-    /// every placement-instruction surface shows, worded for the device track.
+    /// The one spacing sentence every placement-instruction surface shows,
+    /// worded for the device track.
     func spacingInstruction(for device: DeviceType) -> String {
         switch device {
         case .pump:
@@ -46,10 +24,5 @@ enum MeasurementUnit: String, CaseIterable, Identifiable {
         case .cgm:
             "Place the new sensor at least \(siteSpacingText) from your last one, and away from any pump site."
         }
-    }
-
-    /// Pump-track spacing guidance (kept for the pump placement surface).
-    var spacingInstruction: String {
-        spacingInstruction(for: .pump)
     }
 }
