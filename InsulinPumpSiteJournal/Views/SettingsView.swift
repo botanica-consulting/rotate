@@ -18,55 +18,10 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    NavigationLink {
-                        SilhouettePickerView()
-                    } label: {
-                        HStack {
-                            Text("Silhouette")
-                            Spacer()
-                            Image(selectedBodyType.assetName(for: .front))
-                                .resizable()
-                                .scaledToFit()
-                                .opacity(AppTheme.silhouetteOpacity)
-                                .frame(width: 20, height: 40)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    .accessibilityIdentifier("silhouetteLink")
-                    .accessibilityLabel("Silhouette, currently \(selectedBodyType.displayName)")
-                } header: {
-                    Text("Silhouette")
-                } footer: {
-                    Text("The figure shown on the body map and site previews.")
-                }
-
-                Section {
-                    Picker("Continue in", selection: $companionRaw) {
-                        ForEach(CompanionApp.allCases) { app in
-                            Text(app.displayName).tag(app.rawValue)
-                        }
-                    }
-                    .accessibilityIdentifier("companionAppPicker")
-                } header: {
-                    Text("Companion app")
-                } footer: {
-                    Text("If set, confirming a new placement opens this app to activate and pair it. Choose None to keep everything in Rotate.")
-                }
-
-                Section {
-                    Button("Reset journal…", role: .destructive) {
-                        confirmingReset = true
-                    }
-                    .accessibilityIdentifier("resetJournalButton")
-                } footer: {
-                    Text("Deletes every placement record — pump and sensor — here and from iCloud on your other devices. Settings are kept.")
-                }
-
-                Section {
-                } footer: {
-                    Text("Privacy: your journal is stored on this device and syncs through your private iCloud database, readable only by your Apple Account. No third-party servers are involved.")
-                }
+                silhouetteSection
+                companionSection
+                resetSection
+                aboutSection
             }
             .alert(
                 "Delete all placement records?",
@@ -113,8 +68,87 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder
+    private var silhouetteSection: some View {
+        Section {
+            NavigationLink {
+                SilhouettePickerView()
+            } label: {
+                HStack {
+                    Text("Silhouette")
+                    Spacer()
+                    Image(selectedBodyType.assetName(for: .front))
+                        .resizable()
+                        .scaledToFit()
+                        .opacity(AppTheme.silhouetteOpacity)
+                        .frame(width: 20, height: 40)
+                        .accessibilityHidden(true)
+                }
+            }
+            .accessibilityIdentifier("silhouetteLink")
+            .accessibilityLabel("Silhouette, currently \(selectedBodyType.displayName)")
+        } header: {
+            Text("Silhouette")
+        } footer: {
+            Text("The figure shown on the body map and site previews.")
+        }
+    }
+
+    @ViewBuilder
+    private var companionSection: some View {
+        Section {
+            Picker("Continue in", selection: $companionRaw) {
+                ForEach(CompanionApp.allCases) { app in
+                    Text(app.displayName).tag(app.rawValue)
+                }
+            }
+            .accessibilityIdentifier("companionAppPicker")
+        } header: {
+            Text("Companion app")
+        } footer: {
+            Text("If set, confirming a new placement opens this app to activate and pair it. Choose None to keep everything in Rotate.")
+        }
+    }
+
+    @ViewBuilder
+    private var resetSection: some View {
+        Section {
+            Button("Reset journal…", role: .destructive) {
+                confirmingReset = true
+            }
+            .accessibilityIdentifier("resetJournalButton")
+        } footer: {
+            Text("Deletes every placement record — pump and sensor — here and from iCloud on your other devices. Settings are kept.")
+        }
+    }
+
+    @ViewBuilder
+    private var aboutSection: some View {
+        Section {
+            LabeledContent("Version", value: appVersion)
+                .accessibilityIdentifier("appVersionRow")
+            LabeledContent("Build", value: appBuild)
+                .accessibilityIdentifier("appBuildRow")
+        } header: {
+            Text("About")
+        } footer: {
+            Text("Privacy: your journal is stored on this device and syncs through your private iCloud database, readable only by your Apple Account. No third-party servers are involved.")
+        }
+    }
+
     private var selectedBodyType: BodyType {
         BodyType(rawValue: bodyTypeRaw) ?? .neutral
+    }
+
+    /// Marketing version (CFBundleShortVersionString), e.g. "1.0.3".
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    }
+
+    /// Build number (CFBundleVersion) — the fastlane beta lane stamps this
+    /// with a UTC timestamp per upload.
+    private var appBuild: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
     }
 
     private func resetJournal() {
