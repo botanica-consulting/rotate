@@ -106,7 +106,7 @@ struct LoopHandoffView: View {
                 (unit.spacingInstruction(for: .pump), "ruler"),
                 ("Keep clear of waistbands and spots where clothing rubs.", "tshirt"),
                 ("Clean the skin and let it dry fully before applying.", "drop"),
-                ("When the Pod is on, open \(activationTarget) to activate and pair it.",
+                ("When the pump is on, open \(activationTarget) to activate and pair it.",
                  "arrow.triangle.2.circlepath"),
             ]
         case .cgm:

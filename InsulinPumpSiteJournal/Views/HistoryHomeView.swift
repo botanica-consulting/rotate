@@ -145,7 +145,7 @@ struct HistoryHomeView: View {
             ContentUnavailableView {
                 Label("No placements yet", systemImage: "figure.arms.open")
             } description: {
-                Text("Tap New Pod or New Sensor to record your first site.")
+                Text("Tap New Pump or New Sensor to record your first site.")
             }
             safetyFooter
                 .padding(.horizontal)

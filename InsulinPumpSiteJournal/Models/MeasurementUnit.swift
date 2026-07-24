@@ -20,7 +20,7 @@ enum MeasurementUnit {
     func spacingInstruction(for device: DeviceType) -> String {
         switch device {
         case .pump:
-            "Place the new Pod at least \(siteSpacingText) from your previous site and \(navelClearanceText) from your navel."
+            "Place the new pump at least \(siteSpacingText) from your previous site and \(navelClearanceText) from your navel."
         case .cgm:
             "Place the new sensor at least \(siteSpacingText) from your last one, and away from any pump site."
         }

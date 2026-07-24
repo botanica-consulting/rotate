@@ -49,7 +49,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         snap("04-selection-moved")
 
         app.buttons["confirmSiteButton"].tap()
-        XCTAssertTrue(app.staticTexts["Place your Pod"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Place your pump"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.6)
         snap("05-loop-handoff")
 

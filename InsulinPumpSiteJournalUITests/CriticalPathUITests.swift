@@ -21,7 +21,7 @@ final class CriticalPathUITests: XCTestCase {
         let confirmButton = app.buttons["confirmSiteButton"]
         XCTAssertTrue(confirmButton.waitForExistence(timeout: 5))
         confirmButton.tap()
-        XCTAssertTrue(app.staticTexts["Place your Pod"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Place your pump"].waitForExistence(timeout: 5))
 
         // Nothing is saved yet — confirming here performs the save.
         app.buttons["continueInLoopButton"].tap()
