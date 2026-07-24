@@ -1,0 +1,7 @@
+Rotate is a standalone journaling/reminder aid for insulin-pump and CGM placement sites. It is NOT a medical device: it takes no measurements and gives no dosing, diagnosis, or treatment advice.
+
+- Fully functional on its own — no login, no account, no server. All data is the user's own journal, stored on-device and synced through their private iCloud (the developer has no access). HealthKit is not used.
+- The optional "companion app" setting can open Loop or the Dexcom app via a URL scheme after a placement is logged; this is entirely optional (default can be None) and the app works fully without them. Rotate does not install, bundle, or instruct installing any other software.
+- Not affiliated with Insulet, Dexcom, or Loop; those names are used only to describe compatibility.
+
+To exercise the app: tap "New Pump" or "New Sensor", pick a suggested site, and confirm — the placement appears on the home screen and the body map.

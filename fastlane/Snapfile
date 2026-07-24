@@ -1,0 +1,19 @@
+# App Store screenshot capture (fastlane snapshot).
+#
+# ⚠️ One-time wiring required before `fastlane screenshots` works — see
+# RELEASE.md § Screenshots: run `fastlane snapshot init` to add
+# SnapshotHelper.swift to the UI-test target, then call setupSnapshot(app)
+# before launch and snapshot("01-...") at each stage. ScreenshotWalkUITests
+# is the ready starting point (its stage names already map to good frames).
+
+devices(["iPhone 17 Pro Max"])   # 6.9" — the required App Store size; add more as needed
+languages(["en-US"])
+
+scheme("VisualWalk")             # the scheme that runs the screenshot UI test
+output_directory("./fastlane/screenshots")
+clear_previous_screenshots(true)
+
+# Seed the in-memory store so the shots show real pump + sensor history.
+launch_arguments(["--uitest-reset --uitest-seed"])
+
+concurrent_simulators(false)

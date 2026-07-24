@@ -1,0 +1,15 @@
+Rotate is a simple journal for where you place your insulin pump and CGM sensor — and a nudge on when to move them next.
+
+Rotating sites gives your skin time to recover. Rotate keeps your pump and sensor as two separate tracks, shows a color-coded body map of which areas you've used recently, and suggests a fresh spot each time — so you're not guessing or crowding the same patch of skin.
+
+WHAT IT DOES
+• Two independent tracks — pump and CGM, each with its own history and body map
+• A recency heatmap: recently-used areas stand out, rested ones invite reuse
+• Time-on and average wear per track, right on the home screen
+• A quick new-placement flow with placement guidance
+• Optional hand-off: after you log a placement, jump straight to Loop or the Dexcom app to activate and pair
+
+PRIVATE BY DESIGN
+Your journal lives on your device and syncs through your own private iCloud. No accounts, no third-party servers, no tracking, no ads.
+
+Rotate is a journaling and reminder aid. It is not a medical device and does not provide dosing, diagnosis, or treatment advice — always follow your clinician and your device's instructions. Rotate is not affiliated with Insulet, Dexcom, or Loop.
