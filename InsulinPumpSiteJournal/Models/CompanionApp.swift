@@ -42,17 +42,15 @@ enum CompanionApp: String, CaseIterable, Identifiable {
     }
 
     /// Scheme URL that brings the companion to the foreground. Loop has no
-    /// pod-setup deep link, so this lands on its main screen.
-    ///
-    /// NOTE: the Dexcom scheme is unverified — Dexcom publishes no documented
-    /// URL scheme, so this is a best guess. If Dexcom registers no scheme the
-    /// open silently no-ops (the placement still saves, same as `.none`); once
-    /// the real scheme is confirmed on-device, correct it here.
+    /// pod-setup deep link, so this lands on its main screen. `dexcomg7://`
+    /// is the Dexcom G7 app's scheme — the same one Loop's G7SensorKit uses
+    /// for its "Open Dexcom App" button (opens the G7 app; the older G6 app
+    /// uses a different scheme).
     var launchURL: URL? {
         switch self {
         case .none: nil
         case .loop: URL(string: "loop://")
-        case .dexcom: URL(string: "dexcom://")
+        case .dexcom: URL(string: "dexcomg7://")
         }
     }
 }
