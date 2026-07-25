@@ -35,13 +35,6 @@ struct NewPodFlowView: View {
     @State private var isSaving = false
     @State private var saveError: Error?
 
-    /// Shuffle can only offer a genuinely different set when the track's
-    /// catalog is at least two deals deep; small tracks (CGM) can't, so the
-    /// affordance is hidden there rather than re-dealing the same sites.
-    private var canShuffle: Bool {
-        PumpSite.sites(for: deviceType).count >= Self.suggestionCount * 2
-    }
-
     /// One column at accessibility text sizes so card content never crams.
     private var columns: [GridItem] {
         let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
@@ -59,17 +52,15 @@ struct NewPodFlowView: View {
                 )
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar {
-                    if canShuffle {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button {
-                                shuffle()
-                            } label: {
-                                Image(systemName: "shuffle")
-                            }
-                            .accessibilityLabel("Shuffle suggestions")
-                            .accessibilityHint("Shows a different set of sites, including recently rested ones.")
-                            .accessibilityIdentifier("shuffleButton")
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            shuffle()
+                        } label: {
+                            Image(systemName: "shuffle")
                         }
+                        .accessibilityLabel("Shuffle suggestions")
+                        .accessibilityHint("Shows a different set of sites, including recently rested ones.")
+                        .accessibilityIdentifier("shuffleButton")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
@@ -196,31 +187,34 @@ struct NewPodFlowView: View {
         shownSiteIDs = Set(suggestions.map(\.id))
     }
 
-    /// Deals a fresh set: everything shown so far is excluded, which pulls in
-    /// progressively more recently used ("yellow") sites. The last three used
-    /// sites are never offered. When the pool runs dry, the rotation resets.
+    /// Deals a fresh set: sites shown since the last reset are excluded, which
+    /// pulls in progressively more recently rested sites. The last three used
+    /// sites are never offered. When the unseen pool runs low — quickly, on a
+    /// small track like CGM — the rotation restarts while still excluding the
+    /// set currently on screen, so a shuffle visibly changes the cards whenever
+    /// any other eligible site exists (only a no-op if the whole eligible pool
+    /// is already shown).
     private func shuffle() {
         let history = fetchHistory()
         let engine = SiteSuggestionEngine()
         let offLimits = recency.veryRecentSiteIDs
+        let current = Set(suggestions.map(\.id))
 
-        var next = engine.suggestions(
-            from: PumpSite.sites(for: deviceType),
-            history: history,
-            limit: Self.suggestionCount,
-            excluding: offLimits.union(shownSiteIDs),
-            starterSiteIDs: PumpSite.starterSiteIDs(for: deviceType)
-        )
-        if next.count < Self.suggestionCount {
-            // Pool exhausted — restart the rotation from the top.
-            next = engine.suggestions(
+        func deal(excluding excluded: Set<String>) -> [PumpSite] {
+            engine.suggestions(
                 from: PumpSite.sites(for: deviceType),
                 history: history,
                 limit: Self.suggestionCount,
-                excluding: offLimits,
+                excluding: excluded,
                 starterSiteIDs: PumpSite.starterSiteIDs(for: deviceType)
             )
+        }
+
+        var next = deal(excluding: offLimits.union(shownSiteIDs))
+        if next.count < Self.suggestionCount {
             shownSiteIDs = []
+            let rotated = deal(excluding: offLimits.union(current))
+            next = rotated.isEmpty ? deal(excluding: offLimits) : rotated
         }
         withAnimation(selectionAnimation) {
             suggestions = next
