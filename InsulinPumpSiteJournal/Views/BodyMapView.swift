@@ -102,12 +102,7 @@ struct BodyMapView: View {
 
     private func mapFigure(for bodyView: PumpSite.BodyView, title: String) -> some View {
         VStack(spacing: 8) {
-            Image(bodyType.assetName(for: bodyView))
-                .resizable()
-                .interpolation(.high)
-                .antialiased(true)
-                .scaledToFit()
-                .opacity(AppTheme.silhouetteOpacity)
+            BodySilhouette(bodyType: bodyType, bodyView: bodyView)
                 .overlay {
                     GeometryReader { geometry in
                         ForEach(PumpSite.sites(for: selectedDevice).filter { $0.bodyView == bodyView }) { site in
