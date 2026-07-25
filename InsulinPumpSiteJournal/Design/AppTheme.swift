@@ -83,6 +83,10 @@ enum AppTheme {
     /// Pod/sensor stays proportional to the compact figure there, rather than
     /// looming over it (see VignettedBodyThumbnail).
     static let currentBadgeCardScale: CGFloat = 0.6
+    /// The badge drawn *inside* a suggestion-card figure scales with the
+    /// figure's zoom, so this base is small — enough to sit within the area at
+    /// the resting zoom and grow proportionally when the card zooms in.
+    static let siteBadgeFigureScale: CGFloat = 0.3
     /// A gentle trim on the body-map markers so the Pod/sensor sits a touch
     /// lighter on each area.
     static let currentBadgeMapScale: CGFloat = 0.9

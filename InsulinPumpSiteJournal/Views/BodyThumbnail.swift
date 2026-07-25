@@ -54,7 +54,7 @@ struct BodyThumbnail: View {
                         // rides the zoom to wherever the area lands. The base
                         // scale keeps it proportional to the compact figure.
                         CurrentSiteBadge(device: badgeDevice)
-                            .scaleEffect(AppTheme.currentBadgeCardScale)
+                            .scaleEffect(AppTheme.siteBadgeFigureScale)
                             .position(
                                 x: geometry.size.width * site.markerPosition.x,
                                 y: geometry.size.height * site.markerPosition.y
