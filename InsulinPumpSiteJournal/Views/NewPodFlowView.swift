@@ -214,12 +214,12 @@ struct NewPodFlowView: View {
     }
 
     /// Deals a fresh set: sites shown since the last reset are excluded, which
-    /// pulls in progressively more recently rested sites. The last three used
-    /// sites are never offered. When the unseen pool runs low — quickly, on a
-    /// small track like CGM — the rotation restarts while still excluding the
-    /// set currently on screen, so a shuffle visibly changes the cards whenever
-    /// any other eligible site exists (only a no-op if the whole eligible pool
-    /// is already shown).
+    /// pulls in progressively more recently rested sites. Normally the last
+    /// three used sites are held back. When the unseen pool runs low — quickly,
+    /// on a small track like CGM — the rotation restarts excluding the set
+    /// currently on screen; and once even the non-recent pool is exhausted the
+    /// recency guard is relaxed so shuffle surfaces the recently rested sites
+    /// too. A shuffle changes the cards whenever any other site exists.
     private func shuffle() {
         let history = fetchHistory()
         let engine = SiteSuggestionEngine()
@@ -240,7 +240,18 @@ struct NewPodFlowView: View {
         if next.count < Self.suggestionCount {
             shownSiteIDs = []
             let rotated = deal(excluding: offLimits.union(current))
-            next = rotated.isEmpty ? deal(excluding: offLimits) : rotated
+            if rotated.isEmpty {
+                // Small track (CGM): the whole non-recent pool is already on
+                // screen, so re-excluding it just re-deals the same cards.
+                // Relax the recency guard and exclude only the current set —
+                // surfacing recently rested sites, which is exactly what
+                // shuffle promises. Excluding `current` guarantees the deal
+                // differs from what's shown whenever any other site exists.
+                let rested = deal(excluding: current)
+                next = rested.isEmpty ? deal(excluding: []) : rested
+            } else {
+                next = rotated
+            }
         }
         withAnimation(selectionAnimation) {
             suggestions = next
