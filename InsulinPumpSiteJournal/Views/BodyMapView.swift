@@ -104,6 +104,8 @@ struct BodyMapView: View {
         VStack(spacing: 8) {
             Image(bodyType.assetName(for: bodyView))
                 .resizable()
+                .interpolation(.high)
+                .antialiased(true)
                 .scaledToFit()
                 .opacity(AppTheme.silhouetteOpacity)
                 .overlay {
