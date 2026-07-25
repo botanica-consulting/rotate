@@ -25,12 +25,7 @@ struct BodyThumbnail: View {
     }
 
     var body: some View {
-        Image(bodyType.assetName(for: site.bodyView))
-            .resizable()
-            .interpolation(.high)
-            .antialiased(true)
-            .scaledToFit()
-            .opacity(AppTheme.silhouetteOpacity)
+        BodySilhouette(bodyType: bodyType, bodyView: site.bodyView)
             .overlay {
                 GeometryReader { geometry in
                     if let area = SiteAreaCatalog.area(for: site.id, bodyType: bodyType) {
