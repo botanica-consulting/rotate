@@ -29,16 +29,19 @@ struct SiteSuggestionCard: View {
     @ViewBuilder
     private var thumbnail: some View {
         if let occupiedBy {
-            // Tint the area with the occupying device's own color (pump blue /
-            // sensor teal) rather than its recency shade, so "a device is here
-            // now" reads at a glance and names which device.
+            // Occupied site: keep the recency shade, add the same PUMP/SENSOR
+            // tag the current-site card uses so it's clear a device is here.
             VignettedBodyThumbnail(
                 site: site,
-                fill: AppTheme.tint(for: occupiedBy),
+                fill: AppTheme.color(for: tier),
                 device: occupiedBy
             )
             .frame(height: thumbnailHeight)
             .frame(maxWidth: .infinity)
+            .overlay(alignment: .topLeading) {
+                DeviceChip(device: occupiedBy)
+                    .padding(8)
+            }
         } else {
             BodyThumbnail(
                 site: site,
