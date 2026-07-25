@@ -28,6 +28,13 @@ struct NewPodFlowView: View {
     /// heavily used ones the suggestion engine holds back — instead of the
     /// four-card deal. Shuffle is moot in this mode.
     @State private var showingAllSites = false
+    /// Which device (if any) currently sits on each site, across both tracks.
+    /// Occupied cards get that device's badge; the other track's current site
+    /// is also excluded from this track's suggestions.
+    @State private var occupiedByDevice: [String: DeviceType] = [:]
+    /// The other device's current site — never offered here (you can't wear
+    /// two devices on one spot). A hard exclusion, applied to every deal.
+    @State private var crossTrackExcluded: Set<String> = []
     @State private var selectedSite: PumpSite?
     /// Site being placed on the instruction screen — not yet saved.
     @State private var pendingSite: PumpSite?
@@ -155,7 +162,8 @@ struct NewPodFlowView: View {
                             lastUsed: lastUsedBySite[site.id],
                             tier: recency.tier(for: site.id),
                             isSelected: selectedSite == site,
-                            index: index
+                            index: index,
+                            occupiedBy: occupiedByDevice[site.id]
                         ) {
                             withAnimation(selectionAnimation) {
                                 selectedSite = site
@@ -200,14 +208,28 @@ struct NewPodFlowView: View {
 
     private func loadSuggestionsIfNeeded() {
         guard suggestions.isEmpty else { return }
-        let history = fetchHistory()
+        let all = (try? JournalStore(context: modelContext).history()) ?? []
+
+        // What's on the body right now, per track. Occupied sites get that
+        // device's badge in the grid; the *other* track's current site is a
+        // hard exclusion here so we never suggest a spot already in use.
+        var occupied: [String: DeviceType] = [:]
+        for device in DeviceType.allCases {
+            if let current = PlacementTimeline(records: all, deviceType: device).current {
+                occupied[current.siteID] = device
+            }
+        }
+        occupiedByDevice = occupied
+        crossTrackExcluded = Set(occupied.filter { $0.value != deviceType }.map(\.key))
+
+        let history = all.filter { $0.deviceType == deviceType.rawValue }
         lastUsedBySite = PlacementTimeline(records: history).lastUsedBySite
         recency = SiteRecencyModel(history: history)
         suggestions = SiteSuggestionEngine().suggestions(
             from: PumpSite.sites(for: deviceType),
             history: history,
             limit: Self.suggestionCount,
-            excluding: recency.veryRecentSiteIDs,
+            excluding: recency.veryRecentSiteIDs.union(crossTrackExcluded),
             starterSiteIDs: PumpSite.starterSiteIDs(for: deviceType)
         )
         shownSiteIDs = Set(suggestions.map(\.id))
@@ -231,7 +253,9 @@ struct NewPodFlowView: View {
                 from: PumpSite.sites(for: deviceType),
                 history: history,
                 limit: Self.suggestionCount,
-                excluding: excluded,
+                // The other device's current site stays excluded even in the
+                // relaxed fallbacks below — it's physically occupied.
+                excluding: excluded.union(crossTrackExcluded),
                 starterSiteIDs: PumpSite.starterSiteIDs(for: deviceType)
             )
         }
