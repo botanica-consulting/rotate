@@ -152,9 +152,25 @@ struct NewPodFlowView: View {
         showingAllSites ? PumpSite.sites(for: deviceType) : suggestions
     }
 
+    /// Names which list is on screen so the two modes don't look identical.
+    private var subtitle: String {
+        showingAllSites
+            ? "All sites, including recently used"
+            : "Suggested for your next rotation"
+    }
+
     private var choosingContent: some View {
         VStack(spacing: 0) {
             ScrollView {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+                    .contentTransition(.opacity)
+                    .accessibilityIdentifier("siteListSubtitle")
+
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(Array(displayedSites.enumerated()), id: \.element.id) { index, site in
                         SiteSuggestionCard(
@@ -172,7 +188,7 @@ struct NewPodFlowView: View {
                     }
                 }
                 .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.top, 12)
                 .padding(.bottom, 16)
             }
 

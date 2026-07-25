@@ -22,58 +22,47 @@ struct SiteSuggestionCard: View {
     /// Unselected cards stay lightly zoomed toward the site for context.
     private let restingZoom: CGFloat = 1.35
 
-    /// The card's figure. An occupied site reuses the current-site card's
-    /// vignette + device badge (centered, zoomed onto the area) so the badge
-    /// lands on the right spot; every other card keeps the resting-zoom body
-    /// that zooms in only when selected.
-    @ViewBuilder
+    /// The card's figure. Every card uses the same resting-zoom body that
+    /// zooms in when selected; an occupied site just draws its device badge on
+    /// the area (riding the same zoom) and carries the PUMP/SENSOR tag.
     private var thumbnail: some View {
-        if let occupiedBy {
-            // Occupied site: keep the recency shade, add the same PUMP/SENSOR
-            // tag the current-site card uses so it's clear a device is here.
-            VignettedBodyThumbnail(
-                site: site,
-                fill: AppTheme.color(for: tier),
-                device: occupiedBy
-            )
-            .frame(height: thumbnailHeight)
-            .frame(maxWidth: .infinity)
-            .overlay(alignment: .topLeading) {
+        BodyThumbnail(
+            site: site,
+            fill: AppTheme.color(for: tier),
+            zoom: isSelected ? AppTheme.siteFocusZoom : restingZoom,
+            centerOnMarker: isSelected,
+            badgeDevice: occupiedBy
+        )
+        .frame(height: thumbnailHeight)
+        .frame(maxWidth: .infinity)
+        .clipped()
+        // Vignette: selection zooms into the area and softly crops the
+        // sides. Both masks stay in the tree so the switch cross-fades
+        // with the zoom animation.
+        .mask {
+            ZStack {
+                Rectangle()
+                    .opacity(isSelected ? 0 : 1)
+                RadialGradient(
+                    colors: [.black, .black, .clear],
+                    center: .center,
+                    startRadius: thumbnailHeight * AppTheme.vignetteInnerRatio,
+                    endRadius: thumbnailHeight * AppTheme.vignetteOuterRatio
+                )
+                .opacity(isSelected ? 1 : 0)
+            }
+        }
+        // The zoom gets its own settle-in spring; the rest of the
+        // selection treatment keeps the flow's quick fade.
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.8),
+            value: isSelected
+        )
+        .overlay(alignment: .topLeading) {
+            if let occupiedBy {
                 DeviceChip(device: occupiedBy)
                     .padding(8)
             }
-        } else {
-            BodyThumbnail(
-                site: site,
-                fill: AppTheme.color(for: tier),
-                zoom: isSelected ? AppTheme.siteFocusZoom : restingZoom,
-                centerOnMarker: isSelected
-            )
-            .frame(height: thumbnailHeight)
-            .frame(maxWidth: .infinity)
-            .clipped()
-            // Vignette: selection zooms into the area and softly crops the
-            // sides. Both masks stay in the tree so the switch cross-fades
-            // with the zoom animation.
-            .mask {
-                ZStack {
-                    Rectangle()
-                        .opacity(isSelected ? 0 : 1)
-                    RadialGradient(
-                        colors: [.black, .black, .clear],
-                        center: .center,
-                        startRadius: thumbnailHeight * AppTheme.vignetteInnerRatio,
-                        endRadius: thumbnailHeight * AppTheme.vignetteOuterRatio
-                    )
-                    .opacity(isSelected ? 1 : 0)
-                }
-            }
-            // The zoom gets its own settle-in spring; the rest of the
-            // selection treatment keeps the flow's quick fade.
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.8),
-                value: isSelected
-            )
         }
     }
 

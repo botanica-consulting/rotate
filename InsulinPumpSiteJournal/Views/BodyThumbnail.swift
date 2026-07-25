@@ -12,6 +12,11 @@ struct BodyThumbnail: View {
     /// When true, the zoom recenters the figure so the site's area lands in
     /// the middle of the frame instead of staying anchored in place.
     var centerOnMarker: Bool = false
+    /// When set, draws that device's badge on the site's area — inside the
+    /// scaled figure so it tracks the zoom (and its animation) and lands on
+    /// the marker, but counter-scaled so it stays a fixed size like the body
+    /// map's markers.
+    var badgeDevice: DeviceType? = nil
 
     @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
 
@@ -36,6 +41,18 @@ struct BodyThumbnail: View {
                             .fill(fill)
                             .overlay(Circle().stroke(.background, lineWidth: 2 / zoom))
                             .frame(width: 18 / zoom, height: 18 / zoom)
+                            .position(
+                                x: geometry.size.width * site.markerPosition.x,
+                                y: geometry.size.height * site.markerPosition.y
+                            )
+                    }
+
+                    if let badgeDevice {
+                        // Counter-scaled by 1/zoom so the outer scaleEffect
+                        // leaves it fixed-size; positioned on the marker so it
+                        // rides the zoom to wherever the area lands.
+                        CurrentSiteBadge(device: badgeDevice)
+                            .scaleEffect(1 / zoom)
                             .position(
                                 x: geometry.size.width * site.markerPosition.x,
                                 y: geometry.size.height * site.markerPosition.y
