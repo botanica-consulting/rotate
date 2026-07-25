@@ -24,6 +24,10 @@ struct NewPodFlowView: View {
     @State private var lastUsedBySite: [String: Date] = [:]
     @State private var recency = SiteRecencyModel(history: [])
     @State private var shownSiteIDs: Set<String> = []
+    /// When on, the grid shows every site for this track — including the
+    /// heavily used ones the suggestion engine holds back — instead of the
+    /// four-card deal. Shuffle is moot in this mode.
+    @State private var showingAllSites = false
     @State private var selectedSite: PumpSite?
     /// Site being placed on the instruction screen — not yet saved.
     @State private var pendingSite: PumpSite?
@@ -54,10 +58,26 @@ struct NewPodFlowView: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
+                            withAnimation(selectionAnimation) {
+                                showingAllSites.toggle()
+                                selectedSite = nil
+                            }
+                        } label: {
+                            Image(systemName: showingAllSites ? "square.grid.2x2.fill" : "square.grid.2x2")
+                        }
+                        .accessibilityLabel(showingAllSites ? "Show suggested sites" : "Show all sites")
+                        .accessibilityHint("Shows every site, including recently used ones.")
+                        .accessibilityIdentifier("showAllButton")
+                    }
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
                             shuffle()
                         } label: {
                             Image(systemName: "shuffle")
                         }
+                        // Shuffle only reshuffles the deal; with every site
+                        // already shown there is nothing left to shuffle.
+                        .disabled(showingAllSites)
                         .accessibilityLabel("Shuffle suggestions")
                         .accessibilityHint("Shows a different set of sites, including recently rested ones.")
                         .accessibilityIdentifier("shuffleButton")
@@ -119,11 +139,17 @@ struct NewPodFlowView: View {
         }
     }
 
+    /// The cards to render: the full catalog for this track in show-all mode,
+    /// otherwise the current suggested deal.
+    private var displayedSites: [PumpSite] {
+        showingAllSites ? PumpSite.sites(for: deviceType) : suggestions
+    }
+
     private var choosingContent: some View {
         VStack(spacing: 0) {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, site in
+                    ForEach(Array(displayedSites.enumerated()), id: \.element.id) { index, site in
                         SiteSuggestionCard(
                             site: site,
                             lastUsed: lastUsedBySite[site.id],
