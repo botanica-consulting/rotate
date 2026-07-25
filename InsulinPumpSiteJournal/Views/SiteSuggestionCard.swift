@@ -58,12 +58,6 @@ struct SiteSuggestionCard: View {
             reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.8),
             value: isSelected
         )
-        .overlay(alignment: .topLeading) {
-            if let occupiedBy {
-                DeviceChip(device: occupiedBy)
-                    .padding(8)
-            }
-        }
     }
 
     var body: some View {
@@ -71,9 +65,19 @@ struct SiteSuggestionCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 thumbnail
 
-                Text(site.bodyView == .front ? "Front" : "Rear")
-                    .font(.caption2.smallCaps())
-                    .foregroundStyle(.secondary)
+                // The front/rear caption and — when a device is on this site —
+                // its PUMP/SENSOR tag share one row in the text block, so the
+                // tag lives inside the card layout instead of floating over the
+                // figure (where a zoomed silhouette could slide under it).
+                HStack {
+                    Text(site.bodyView == .front ? "Front" : "Rear")
+                        .font(.caption2.smallCaps())
+                        .foregroundStyle(.secondary)
+                    if let occupiedBy {
+                        Spacer(minLength: 8)
+                        DeviceChip(device: occupiedBy)
+                    }
+                }
 
                 Text(site.title)
                     .font(.headline)

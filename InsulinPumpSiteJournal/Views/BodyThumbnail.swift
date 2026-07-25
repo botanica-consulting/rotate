@@ -48,11 +48,13 @@ struct BodyThumbnail: View {
                     }
 
                     if let badgeDevice {
-                        // Counter-scaled by 1/zoom so the outer scaleEffect
-                        // leaves it fixed-size; positioned on the marker so it
-                        // rides the zoom to wherever the area lands.
+                        // Inside the scaled figure and NOT counter-scaled, so
+                        // the badge grows and shrinks with the zoom just like
+                        // the area under it; positioned on the marker so it
+                        // rides the zoom to wherever the area lands. The base
+                        // scale keeps it proportional to the compact figure.
                         CurrentSiteBadge(device: badgeDevice)
-                            .scaleEffect(1 / zoom)
+                            .scaleEffect(AppTheme.currentBadgeCardScale)
                             .position(
                                 x: geometry.size.width * site.markerPosition.x,
                                 y: geometry.size.height * site.markerPosition.y
