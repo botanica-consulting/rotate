@@ -14,12 +14,15 @@ struct InsulinPumpSiteJournalApp: App {
 /// if the store won't open (corruption, failed migration), the user gets a
 /// recovery screen with retry and reset instead of a crash.
 struct AppRootView: View {
+    /// First-launch flag — flipped when the setup wizard finishes, so the
+    /// walkthrough shows once and never again.
+    @AppStorage("hasCompletedSetup") private var hasCompletedSetup = false
     @State private var containerResult = AppRootView.makeContainer()
 
     var body: some View {
         switch containerResult {
         case .success(let container):
-            HistoryHomeView()
+            rootContent
                 .modelContainer(container)
         case .failure(let error):
             StoreRecoveryView(
@@ -31,6 +34,28 @@ struct AppRootView: View {
                 }
             )
         }
+    }
+
+    /// The journal, or the one-time setup wizard on first launch.
+    @ViewBuilder
+    private var rootContent: some View {
+        if shouldShowOnboarding {
+            SetupWizardView(onFinish: { hasCompletedSetup = true })
+        } else {
+            HistoryHomeView()
+        }
+    }
+
+    /// Whether to present the setup wizard. Test launches go straight to the
+    /// journal so the existing UI tests are unaffected; `--uitest-onboarding`
+    /// forces the wizard for its own visual QA.
+    private var shouldShowOnboarding: Bool {
+        if CommandLine.arguments.contains("--uitest-onboarding") { return true }
+        if CommandLine.arguments.contains("--uitest-reset")
+            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return false
+        }
+        return !hasCompletedSetup
     }
 
     private static func makeContainer() -> Result<ModelContainer, Error> {
