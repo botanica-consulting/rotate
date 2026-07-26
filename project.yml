@@ -39,6 +39,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: consulting.botanica.rotate
+        # iPhone only. Must be set at the TARGET level — the project-level
+        # value gets overridden to "1,2" (universal), which made Apple demand
+        # iPad screenshots and throw ITMS-90474. Target-level wins.
+        TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: "YES"
