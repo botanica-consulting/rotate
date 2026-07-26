@@ -12,8 +12,8 @@ struct SettingsView: View {
     @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
     // Observed so the "Rotation areas" summaries refresh when the sub-screens
     // change them.
-    @AppStorage(RegionSettings.storageKey(for: .pump)) private var pumpDisabledRegions = ""
-    @AppStorage(RegionSettings.storageKey(for: .cgm)) private var sensorDisabledRegions = ""
+    @AppStorage(AreaSettings.storageKey(for: .pump)) private var pumpDisabledSites = ""
+    @AppStorage(AreaSettings.storageKey(for: .cgm)) private var sensorDisabledSites = ""
     @State private var confirmingReset = false
     /// Typed reset confirmation — the journal now syncs, so a reset reaches
     /// every device. Deleting requires typing RESET, not just a second tap.
@@ -103,20 +103,20 @@ struct SettingsView: View {
     @ViewBuilder
     private var regionsSection: some View {
         Section {
-            regionLink(for: .pump, disabledRaw: pumpDisabledRegions)
-            regionLink(for: .cgm, disabledRaw: sensorDisabledRegions)
+            areaLink(for: .pump, disabledRaw: pumpDisabledSites)
+            areaLink(for: .cgm, disabledRaw: sensorDisabledSites)
         } header: {
             Text("Rotation areas")
         } footer: {
-            Text("Choose which body regions each track rotates through. Every region is on by default; turn off any you don't use.")
+            Text("Choose which body areas each track rotates through. Every area is on by default; turn off any you don't use.")
         }
     }
 
-    private func regionLink(for device: DeviceType, disabledRaw: String) -> some View {
-        let total = PumpSite.Region.allCases.count
-        let enabled = total - RegionSettings.parse(disabledRaw).count
+    private func areaLink(for device: DeviceType, disabledRaw: String) -> some View {
+        let total = PumpSite.catalog.count
+        let enabled = total - AreaSettings.parse(disabledRaw).count
         return NavigationLink {
-            RegionSettingsView(device: device)
+            AreaSettingsView(device: device)
         } label: {
             HStack {
                 Text(device.displayName)
@@ -252,70 +252,147 @@ struct SilhouettePickerView: View {
     }
 }
 
-/// Per-track region toggles. Excluding a region drops its sites from that
-/// track's suggestions and body map; the last enabled region can't be turned
-/// off, since a track with no regions has nothing to rotate through.
-struct RegionSettingsView: View {
+/// Per-track area picker. Mirrors the choose-a-site screen: a grid of body
+/// figures with each area highlighted, grouped by region, so you pick by sight
+/// rather than by label. Tapping an area includes or excludes it for this
+/// track — excluded areas grey out and drop from the track's suggestions and
+/// body map. The last enabled area can't be turned off, since a track with no
+/// areas has nothing to rotate through. Records already on an excluded area are
+/// kept.
+struct AreaSettingsView: View {
     let device: DeviceType
     @AppStorage private var disabledRaw: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(device: DeviceType) {
         self.device = device
-        self._disabledRaw = AppStorage(wrappedValue: "", RegionSettings.storageKey(for: device))
+        self._disabledRaw = AppStorage(wrappedValue: "", AreaSettings.storageKey(for: device))
+    }
+
+    /// One column at accessibility text sizes so cards never cram — the same
+    /// rule the choose-a-site grid uses.
+    private var columns: [GridItem] {
+        let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
     }
 
     var body: some View {
-        let disabled = RegionSettings.parse(disabledRaw)
-        List {
-            Section {
+        let disabled = AreaSettings.parse(disabledRaw)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("Tap an area to include or exclude it for your \(device.noun). Excluded areas grey out and won't be suggested or shown on the body map for this track.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+
                 ForEach(PumpSite.Region.allCases) { region in
-                    Button {
-                        toggle(region)
-                    } label: {
-                        row(for: region, isOn: !disabled.contains(region))
+                    let sites = PumpSite.catalog.filter { $0.region == region }
+                    if !sites.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(region.displayName)
+                                .font(.headline)
+                                .padding(.horizontal)
+                            LazyVGrid(columns: columns, spacing: 16) {
+                                ForEach(sites) { site in
+                                    AreaToggleCard(
+                                        site: site,
+                                        device: device,
+                                        isOn: !disabled.contains(site.id)
+                                    ) {
+                                        toggle(site.id)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("regionOption-\(region.rawValue)")
                 }
-            } footer: {
-                Text("Tap to include or exclude a region for your \(device.noun). Excluded regions are greyed out and won't be suggested or shown on the body map for this track. Records already on those sites are kept.")
             }
+            .padding(.top, 4)
+            .padding(.bottom, 24)
         }
+        .background(AppBackground())
         .navigationTitle("\(device.displayName) areas")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// A checklist row in the silhouette-picker style: an included region shows
-    /// a filled checkmark in the track's tint; an excluded one greys out with
-    /// an empty circle.
-    private func row(for region: PumpSite.Region, isOn: Bool) -> some View {
-        HStack {
-            Text(region.displayName)
-                .foregroundStyle(isOn ? .primary : .secondary)
-            Spacer()
-            Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                .font(.title3)
-                .foregroundStyle(isOn ? AppTheme.tint(for: device) : Color(.tertiaryLabel))
-                .accessibilityHidden(true)
+    private func toggle(_ id: String) {
+        var disabled = AreaSettings.parse(disabledRaw)
+        if disabled.contains(id) {
+            disabled.remove(id)
+        } else {
+            // Keep at least one area enabled — a track with none has nothing
+            // to rotate through.
+            guard disabled.count < PumpSite.catalog.count - 1 else { return }
+            disabled.insert(id)
         }
-        .contentShape(.rect)
+        disabledRaw = AreaSettings.encode(disabled)
+    }
+}
+
+/// A single area card in the picker: the choose-a-site card, reduced to what a
+/// setting needs. An included area lights its highlight in the track's tint and
+/// carries a filled checkmark; an excluded one desaturates and dims with an
+/// empty circle, so inclusion reads at a glance without relying on color alone.
+private struct AreaToggleCard: View {
+    let site: PumpSite
+    let device: DeviceType
+    let isOn: Bool
+    let action: () -> Void
+
+    private let thumbnailHeight: CGFloat = 120
+    /// The same resting zoom the unselected choose-a-site cards use, so the
+    /// figure keeps body context while emphasizing the area.
+    private let restingZoom: CGFloat = 1.35
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                BodyThumbnail(
+                    site: site,
+                    fill: isOn ? AppTheme.tint(for: device) : Color(.systemGray3),
+                    zoom: restingZoom
+                )
+                .frame(height: thumbnailHeight)
+                .frame(maxWidth: .infinity)
+                .clipped()
+                // Excluded areas drop their color entirely, not just dim it, so
+                // the off state doesn't read as a faint tint.
+                .saturation(isOn ? 1 : 0)
+
+                Text(site.bodyView == .front ? "Front" : "Rear")
+                    .font(.caption2.smallCaps())
+                    .foregroundStyle(.secondary)
+                Text(site.title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(isOn ? .primary : .secondary)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isOn ? AppTheme.tint(for: device) : Color(.tertiaryLabel))
+                    .padding(8)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(.rect(cornerRadius: AppTheme.cardCornerRadius))
+        }
+        .buttonStyle(.plain)
+        .background {
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius)
+                .fill(.thinMaterial)
+        }
+        // Dim the whole excluded card so it recedes behind the included ones.
+        .opacity(isOn ? 1 : 0.55)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(region.displayName)
+        .accessibilityLabel(site.title)
         .accessibilityValue(isOn ? "Included" : "Excluded")
         .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
-    }
-
-    private func toggle(_ region: PumpSite.Region) {
-        var disabled = RegionSettings.parse(disabledRaw)
-        if disabled.contains(region) {
-            disabled.remove(region)
-        } else {
-            // Keep at least one region enabled — a track with none has nothing
-            // to rotate through.
-            guard disabled.count < PumpSite.Region.allCases.count - 1 else { return }
-            disabled.insert(region)
-        }
-        disabledRaw = RegionSettings.encode(disabled)
+        .accessibilityIdentifier("areaOption-\(site.id)")
     }
 }
 
@@ -323,9 +400,9 @@ struct RegionSettingsView: View {
     SettingsView()
 }
 
-#Preview("Region settings") {
+#Preview("Area settings") {
     NavigationStack {
-        RegionSettingsView(device: .cgm)
+        AreaSettingsView(device: .cgm)
     }
 }
 
