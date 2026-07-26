@@ -24,8 +24,8 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 silhouetteSection
-                regionsSection
-                companionSection
+                deviceSection(for: .pump, companion: $pumpCompanionRaw, disabledRaw: pumpDisabledSites)
+                deviceSection(for: .cgm, companion: $sensorCompanionRaw, disabledRaw: sensorDisabledSites)
                 resetSection
                 aboutSection
             }
@@ -100,15 +100,28 @@ struct SettingsView: View {
         }
     }
 
+    /// Everything specific to one track — its companion app and its rotation
+    /// areas — collected under a single header, so the pump's settings and the
+    /// sensor's settings each live in one place instead of being spread across
+    /// the screen.
     @ViewBuilder
-    private var regionsSection: some View {
+    private func deviceSection(
+        for device: DeviceType,
+        companion: Binding<String>,
+        disabledRaw: String
+    ) -> some View {
         Section {
-            areaLink(for: .pump, disabledRaw: pumpDisabledSites)
-            areaLink(for: .cgm, disabledRaw: sensorDisabledSites)
+            Picker("Companion app", selection: companion) {
+                ForEach(CompanionApp.options(for: device)) { app in
+                    Text(app.displayName).tag(app.rawValue)
+                }
+            }
+            .accessibilityIdentifier(device == .pump ? "pumpCompanionPicker" : "sensorCompanionPicker")
+            areaLink(for: device, disabledRaw: disabledRaw)
         } header: {
-            Text("Rotation areas")
+            Text(device.displayName)
         } footer: {
-            Text("Choose which body areas each track rotates through. Every area is on by default; turn off any you don't use.")
+            Text("Confirming a \(device.noun) placement opens its companion app to activate and pair — choose None to stay in Rotate. Rotation areas set where new \(device.noun) sites can be suggested.")
         }
     }
 
@@ -119,36 +132,14 @@ struct SettingsView: View {
             AreaSettingsView(device: device)
         } label: {
             HStack {
-                Text(device.displayName)
+                Text("Rotation areas")
                 Spacer()
                 Text(enabled == total ? "All areas" : "\(enabled) of \(total)")
                     .foregroundStyle(.secondary)
             }
         }
         .accessibilityIdentifier(device == .pump ? "pumpRegionsLink" : "sensorRegionsLink")
-        .accessibilityLabel("\(device.displayName) areas, \(enabled) of \(total) on")
-    }
-
-    @ViewBuilder
-    private var companionSection: some View {
-        Section {
-            Picker("Pump", selection: $pumpCompanionRaw) {
-                ForEach(CompanionApp.options(for: .pump)) { app in
-                    Text(app.displayName).tag(app.rawValue)
-                }
-            }
-            .accessibilityIdentifier("pumpCompanionPicker")
-            Picker("Sensor", selection: $sensorCompanionRaw) {
-                ForEach(CompanionApp.options(for: .cgm)) { app in
-                    Text(app.displayName).tag(app.rawValue)
-                }
-            }
-            .accessibilityIdentifier("sensorCompanionPicker")
-        } header: {
-            Text("Companion apps")
-        } footer: {
-            Text("Confirming a placement opens that track's app to activate and pair it — the pump and sensor can differ. Choose None to keep everything in Rotate.")
-        }
+        .accessibilityLabel("\(device.displayName) rotation areas, \(enabled) of \(total) on")
     }
 
     @ViewBuilder

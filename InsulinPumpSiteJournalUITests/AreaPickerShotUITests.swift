@@ -19,6 +19,9 @@ final class AreaPickerShotUITests: XCTestCase {
         app.buttons["settingsButton"].tap()
 
         XCTAssertTrue(app.buttons["sensorRegionsLink"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
+        snap("settings-root")
+
         app.buttons["sensorRegionsLink"].tap()
 
         XCTAssertTrue(app.buttons["areaOption-back-upper-arm-left"].waitForExistence(timeout: 5))
