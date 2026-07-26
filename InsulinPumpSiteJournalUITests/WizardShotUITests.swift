@@ -24,11 +24,17 @@ final class WizardShotUITests: XCTestCase {
         snap("wizard-2")
 
         app.buttons["wizardContinueButton"].tap()
-        Thread.sleep(forTimeInterval: 0.6)
+        Thread.sleep(forTimeInterval: 1.6) // let the heatmap tour animate a little
         snap("wizard-3")
 
-        // Last page → "Set up" pushes the config step.
+        // Last page → pushes the mandatory disclaimer.
         app.buttons["wizardContinueButton"].tap()
+        XCTAssertTrue(app.buttons["wizardDisclaimerButton"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
+        snap("wizard-disclaimer")
+
+        // Disclaimer → config step.
+        app.buttons["wizardDisclaimerButton"].tap()
         XCTAssertTrue(app.buttons["wizardStartButton"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.6)
         snap("wizard-config")
