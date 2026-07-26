@@ -188,13 +188,13 @@ extension PumpSite {
     ]
 
     /// The site catalog for a device track: the full body catalog (both tracks
-    /// support every region), minus any regions the user has excluded for this
-    /// track in Settings. `site(for:)` stays unfiltered so historical records
-    /// on an excluded region still render.
+    /// support every site), minus any individual sites the user has excluded
+    /// for this track in Settings. `site(for:)` stays unfiltered so historical
+    /// records on an excluded site still render.
     static func sites(for device: DeviceType) -> [PumpSite] {
-        let disabled = RegionSettings.disabledRegions(for: device)
+        let disabled = AreaSettings.disabledSites(for: device)
         guard !disabled.isEmpty else { return catalog }
-        return catalog.filter { !disabled.contains($0.region) }
+        return catalog.filter { !disabled.contains($0.id) }
     }
 
     /// The empty-history starter IDs for a device track.

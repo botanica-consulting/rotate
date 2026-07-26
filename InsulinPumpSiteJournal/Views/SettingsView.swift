@@ -7,13 +7,7 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(CompanionApp.storageKey(for: .pump)) private var pumpCompanionRaw = CompanionApp.loop.rawValue
-    @AppStorage(CompanionApp.storageKey(for: .cgm)) private var sensorCompanionRaw = CompanionApp.loop.rawValue
     @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
-    // Observed so the "Rotation areas" summaries refresh when the sub-screens
-    // change them.
-    @AppStorage(RegionSettings.storageKey(for: .pump)) private var pumpDisabledRegions = ""
-    @AppStorage(RegionSettings.storageKey(for: .cgm)) private var sensorDisabledRegions = ""
     @State private var confirmingReset = false
     /// Typed reset confirmation — the journal now syncs, so a reset reaches
     /// every device. Deleting requires typing RESET, not just a second tap.
@@ -24,10 +18,9 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 silhouetteSection
-                regionsSection
-                companionSection
+                devicesSection
                 resetSection
-                aboutSection
+                footerSection
             }
             .alert(
                 "Delete all placement records?",
@@ -100,55 +93,25 @@ struct SettingsView: View {
         }
     }
 
+    /// One row per track, each opening that track's own settings screen — a
+    /// clear home for everything pump- or sensor-specific, with room to grow.
     @ViewBuilder
-    private var regionsSection: some View {
+    private var devicesSection: some View {
         Section {
-            regionLink(for: .pump, disabledRaw: pumpDisabledRegions)
-            regionLink(for: .cgm, disabledRaw: sensorDisabledRegions)
-        } header: {
-            Text("Rotation areas")
+            deviceLink(for: .pump)
+            deviceLink(for: .cgm)
         } footer: {
-            Text("Choose which body regions each track rotates through. Every region is on by default; turn off any you don't use.")
+            Text("Companion app and areas for each track.")
         }
     }
 
-    private func regionLink(for device: DeviceType, disabledRaw: String) -> some View {
-        let total = PumpSite.Region.allCases.count
-        let enabled = total - RegionSettings.parse(disabledRaw).count
-        return NavigationLink {
-            RegionSettingsView(device: device)
+    private func deviceLink(for device: DeviceType) -> some View {
+        NavigationLink {
+            DeviceSettingsView(device: device)
         } label: {
-            HStack {
-                Text(device.displayName)
-                Spacer()
-                Text(enabled == total ? "All areas" : "\(enabled) of \(total)")
-                    .foregroundStyle(.secondary)
-            }
+            Text(device.displayName)
         }
-        .accessibilityIdentifier(device == .pump ? "pumpRegionsLink" : "sensorRegionsLink")
-        .accessibilityLabel("\(device.displayName) areas, \(enabled) of \(total) on")
-    }
-
-    @ViewBuilder
-    private var companionSection: some View {
-        Section {
-            Picker("Pump", selection: $pumpCompanionRaw) {
-                ForEach(CompanionApp.options(for: .pump)) { app in
-                    Text(app.displayName).tag(app.rawValue)
-                }
-            }
-            .accessibilityIdentifier("pumpCompanionPicker")
-            Picker("Sensor", selection: $sensorCompanionRaw) {
-                ForEach(CompanionApp.options(for: .cgm)) { app in
-                    Text(app.displayName).tag(app.rawValue)
-                }
-            }
-            .accessibilityIdentifier("sensorCompanionPicker")
-        } header: {
-            Text("Companion apps")
-        } footer: {
-            Text("Confirming a placement opens that track's app to activate and pair it — the pump and sensor can differ. Choose None to keep everything in Rotate.")
-        }
+        .accessibilityIdentifier(device == .pump ? "pumpSettingsLink" : "sensorSettingsLink")
     }
 
     @ViewBuilder
@@ -163,17 +126,25 @@ struct SettingsView: View {
         }
     }
 
+    /// No boxed "About" rows — just a quiet footer at the bottom carrying the
+    /// privacy note and the version/build, so the numbers stay available
+    /// without drawing the eye.
     @ViewBuilder
-    private var aboutSection: some View {
+    private var footerSection: some View {
         Section {
-            LabeledContent("Version", value: appVersion)
-                .accessibilityIdentifier("appVersionRow")
-            LabeledContent("Build", value: appBuild)
-                .accessibilityIdentifier("appBuildRow")
-        } header: {
-            Text("About")
         } footer: {
-            Text("Privacy: your journal is stored on this device and syncs through your private iCloud database, readable only by your Apple Account. No third-party servers are involved.")
+            VStack(spacing: 14) {
+                Text("Syncs only to your private iCloud — Rotate never keeps your data on its own servers.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Text("Version \(appVersion) (\(appBuild))")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .accessibilityIdentifier("versionFooter")
         }
     }
 
@@ -186,8 +157,8 @@ struct SettingsView: View {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     }
 
-    /// Build number (CFBundleVersion) — the fastlane beta lane stamps this
-    /// with a UTC timestamp per upload.
+    /// Build number (CFBundleVersion) — the fastlane beta lane stamps this with
+    /// a UTC datecode per upload, matching what TestFlight shows.
     private var appBuild: String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
     }
@@ -199,6 +170,71 @@ struct SettingsView: View {
         } catch {
             resetError = error
         }
+    }
+}
+
+/// One track's own settings, reached from the Pump / Sensor rows: its
+/// companion app and its rotation areas, each with room for more. The pump and
+/// the sensor keep independent companions and area sets.
+struct DeviceSettingsView: View {
+    let device: DeviceType
+    @AppStorage private var companionRaw: String
+    // Observed so the Areas summary refreshes when the picker changes it.
+    @AppStorage private var disabledRaw: String
+
+    init(device: DeviceType) {
+        self.device = device
+        self._companionRaw = AppStorage(
+            wrappedValue: CompanionApp.loop.rawValue,
+            CompanionApp.storageKey(for: device)
+        )
+        self._disabledRaw = AppStorage(
+            wrappedValue: "",
+            AreaSettings.storageKey(for: device)
+        )
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Companion app", selection: $companionRaw) {
+                    ForEach(CompanionApp.options(for: device)) { app in
+                        Text(app.displayName).tag(app.rawValue)
+                    }
+                }
+                .accessibilityIdentifier(device == .pump ? "pumpCompanionPicker" : "sensorCompanionPicker")
+            } footer: {
+                Text("Confirming a \(device.noun) placement opens its companion app to activate and pair — choose None to stay in Rotate.")
+            }
+
+            Section {
+                NavigationLink {
+                    AreaSettingsView(device: device)
+                } label: {
+                    HStack {
+                        Text("Areas")
+                        Spacer()
+                        Text(areaSummary)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityIdentifier(device == .pump ? "pumpRegionsLink" : "sensorRegionsLink")
+                .accessibilityLabel("Areas, \(enabledAreaCount) of \(PumpSite.catalog.count) on")
+            } footer: {
+                Text("Choose which body areas can be suggested and shown on the body map for your \(device.noun).")
+            }
+        }
+        .navigationTitle(device.displayName)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var enabledAreaCount: Int {
+        PumpSite.catalog.count - AreaSettings.parse(disabledRaw).count
+    }
+
+    private var areaSummary: String {
+        let total = PumpSite.catalog.count
+        return enabledAreaCount == total ? "All areas" : "\(enabledAreaCount) of \(total)"
     }
 }
 
@@ -252,70 +288,147 @@ struct SilhouettePickerView: View {
     }
 }
 
-/// Per-track region toggles. Excluding a region drops its sites from that
-/// track's suggestions and body map; the last enabled region can't be turned
-/// off, since a track with no regions has nothing to rotate through.
-struct RegionSettingsView: View {
+/// Per-track area picker. Mirrors the choose-a-site screen: a grid of body
+/// figures with each area highlighted, grouped by region, so you pick by sight
+/// rather than by label. Tapping an area includes or excludes it for this
+/// track — excluded areas grey out and drop from the track's suggestions and
+/// body map. The last enabled area can't be turned off, since a track with no
+/// areas has nothing to rotate through. Records already on an excluded area are
+/// kept.
+struct AreaSettingsView: View {
     let device: DeviceType
     @AppStorage private var disabledRaw: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(device: DeviceType) {
         self.device = device
-        self._disabledRaw = AppStorage(wrappedValue: "", RegionSettings.storageKey(for: device))
+        self._disabledRaw = AppStorage(wrappedValue: "", AreaSettings.storageKey(for: device))
+    }
+
+    /// One column at accessibility text sizes so cards never cram — the same
+    /// rule the choose-a-site grid uses.
+    private var columns: [GridItem] {
+        let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
     }
 
     var body: some View {
-        let disabled = RegionSettings.parse(disabledRaw)
-        List {
-            Section {
+        let disabled = AreaSettings.parse(disabledRaw)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("Tap an area to include or exclude it for your \(device.noun). Excluded areas grey out and won't be suggested or shown on the body map for this track.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+
                 ForEach(PumpSite.Region.allCases) { region in
-                    Button {
-                        toggle(region)
-                    } label: {
-                        row(for: region, isOn: !disabled.contains(region))
+                    let sites = PumpSite.catalog.filter { $0.region == region }
+                    if !sites.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(region.displayName)
+                                .font(.headline)
+                                .padding(.horizontal)
+                            LazyVGrid(columns: columns, spacing: 16) {
+                                ForEach(sites) { site in
+                                    AreaToggleCard(
+                                        site: site,
+                                        device: device,
+                                        isOn: !disabled.contains(site.id)
+                                    ) {
+                                        toggle(site.id)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("regionOption-\(region.rawValue)")
                 }
-            } footer: {
-                Text("Tap to include or exclude a region for your \(device.noun). Excluded regions are greyed out and won't be suggested or shown on the body map for this track. Records already on those sites are kept.")
             }
+            .padding(.top, 4)
+            .padding(.bottom, 24)
         }
+        .background(AppBackground())
         .navigationTitle("\(device.displayName) areas")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// A checklist row in the silhouette-picker style: an included region shows
-    /// a filled checkmark in the track's tint; an excluded one greys out with
-    /// an empty circle.
-    private func row(for region: PumpSite.Region, isOn: Bool) -> some View {
-        HStack {
-            Text(region.displayName)
-                .foregroundStyle(isOn ? .primary : .secondary)
-            Spacer()
-            Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                .font(.title3)
-                .foregroundStyle(isOn ? AppTheme.tint(for: device) : Color(.tertiaryLabel))
-                .accessibilityHidden(true)
+    private func toggle(_ id: String) {
+        var disabled = AreaSettings.parse(disabledRaw)
+        if disabled.contains(id) {
+            disabled.remove(id)
+        } else {
+            // Keep at least one area enabled — a track with none has nothing
+            // to rotate through.
+            guard disabled.count < PumpSite.catalog.count - 1 else { return }
+            disabled.insert(id)
         }
-        .contentShape(.rect)
+        disabledRaw = AreaSettings.encode(disabled)
+    }
+}
+
+/// A single area card in the picker: the choose-a-site card, reduced to what a
+/// setting needs. An included area lights its highlight in the track's tint and
+/// carries a filled checkmark; an excluded one desaturates and dims with an
+/// empty circle, so inclusion reads at a glance without relying on color alone.
+private struct AreaToggleCard: View {
+    let site: PumpSite
+    let device: DeviceType
+    let isOn: Bool
+    let action: () -> Void
+
+    private let thumbnailHeight: CGFloat = 120
+    /// The same resting zoom the unselected choose-a-site cards use, so the
+    /// figure keeps body context while emphasizing the area.
+    private let restingZoom: CGFloat = 1.35
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                BodyThumbnail(
+                    site: site,
+                    fill: isOn ? AppTheme.tint(for: device) : Color(.systemGray3),
+                    zoom: restingZoom
+                )
+                .frame(height: thumbnailHeight)
+                .frame(maxWidth: .infinity)
+                .clipped()
+                // Excluded areas drop their color entirely, not just dim it, so
+                // the off state doesn't read as a faint tint.
+                .saturation(isOn ? 1 : 0)
+
+                Text(site.bodyView == .front ? "Front" : "Rear")
+                    .font(.caption2.smallCaps())
+                    .foregroundStyle(.secondary)
+                Text(site.title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(isOn ? .primary : .secondary)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isOn ? AppTheme.tint(for: device) : Color(.tertiaryLabel))
+                    .padding(8)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(.rect(cornerRadius: AppTheme.cardCornerRadius))
+        }
+        .buttonStyle(.plain)
+        .background {
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius)
+                .fill(.thinMaterial)
+        }
+        // Dim the whole excluded card so it recedes behind the included ones.
+        .opacity(isOn ? 1 : 0.55)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(region.displayName)
+        .accessibilityLabel(site.title)
         .accessibilityValue(isOn ? "Included" : "Excluded")
         .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
-    }
-
-    private func toggle(_ region: PumpSite.Region) {
-        var disabled = RegionSettings.parse(disabledRaw)
-        if disabled.contains(region) {
-            disabled.remove(region)
-        } else {
-            // Keep at least one region enabled — a track with none has nothing
-            // to rotate through.
-            guard disabled.count < PumpSite.Region.allCases.count - 1 else { return }
-            disabled.insert(region)
-        }
-        disabledRaw = RegionSettings.encode(disabled)
+        .accessibilityIdentifier("areaOption-\(site.id)")
     }
 }
 
@@ -323,9 +436,15 @@ struct RegionSettingsView: View {
     SettingsView()
 }
 
-#Preview("Region settings") {
+#Preview("Device settings") {
     NavigationStack {
-        RegionSettingsView(device: .cgm)
+        DeviceSettingsView(device: .pump)
+    }
+}
+
+#Preview("Area settings") {
+    NavigationStack {
+        AreaSettingsView(device: .cgm)
     }
 }
 

@@ -1,0 +1,4 @@
+app_identifier("consulting.botanica.rotate")
+team_id(ENV["TEAMID"]) if ENV["TEAMID"]
+# No apple_id needed — authentication is via the App Store Connect API key
+# (FASTLANE_KEY_ID / FASTLANE_ISSUER_ID / FASTLANE_KEY_PATH from the environment).

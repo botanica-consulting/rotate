@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & test
+    # Needs an image with the Xcode 26 / iOS 26 SDK.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26.5
+        run: sudo xcode-select -s /Applications/Xcode_26.5.app
+
+      - name: Show toolchain
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      # Compile everything (app + unit + UI test targets), then run only the
+      # unit suite. The UI tests depend on simulator hit-testing that flakes in
+      # a headless runner, so they stay a local/manual check (VisualWalk et al.).
+      - name: Build for testing
+        run: |
+          xcodebuild build-for-testing \
+            -project InsulinPumpSiteJournal.xcodeproj \
+            -scheme InsulinPumpSiteJournal \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest'
+
+      - name: Unit tests
+        run: |
+          xcodebuild test-without-building \
+            -project InsulinPumpSiteJournal.xcodeproj \
+            -scheme InsulinPumpSiteJournal \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -only-testing:InsulinPumpSiteJournalTests

@@ -142,4 +142,61 @@ platform :ios do
       skip_waiting_for_build_processing: true
     )
   end
+
+  desc "Regenerate the App Store screenshots (6.9\", clean 9:41 status bar)"
+  lane :screenshots do
+    # Reads fastlane/Snapfile: the Screenshots scheme, iPhone 17 Pro Max,
+    # seeded demo data. Output -> fastlane/screenshots.
+    capture_screenshots
+  end
+
+  # deliver reads listing text from fastlane/metadata and images from
+  # fastlane/screenshots. skip_binary_upload keeps this metadata-only — the
+  # binary is uploaded separately by `beta`. First-time-only fields that no
+  # API key can set (age rating, App Privacy "Data Not Collected", the review
+  # contact) are documented in docs/APP_STORE.md.
+  desc "Upload App Store listing text + screenshots (no binary, no submit)"
+  lane :metadata do
+    api_key = app_store_connect_api_key(
+      key_id: ENV["FASTLANE_KEY_ID"],
+      issuer_id: ENV["FASTLANE_ISSUER_ID"],
+      key_filepath: File.expand_path(ENV["FASTLANE_KEY_PATH"])
+    )
+
+    upload_to_app_store(
+      api_key: api_key,
+      app_identifier: LOCAL_BUNDLE_ID,
+      skip_binary_upload: true,
+      overwrite_screenshots: true,
+      force: true,                 # skip the HTML preview confirmation
+      run_precheck_before_submit: false,
+      submit_for_review: false
+    )
+  end
+
+  desc "Upload metadata + screenshots and submit the latest build for review"
+  lane :release do
+    api_key = app_store_connect_api_key(
+      key_id: ENV["FASTLANE_KEY_ID"],
+      issuer_id: ENV["FASTLANE_ISSUER_ID"],
+      key_filepath: File.expand_path(ENV["FASTLANE_KEY_PATH"])
+    )
+
+    # Uses the most recent processed build (uploaded by `beta`). Encryption is
+    # already declared non-exempt (ITSAppUsesNonExemptEncryption=false), so no
+    # export-compliance prompt.
+    upload_to_app_store(
+      api_key: api_key,
+      app_identifier: LOCAL_BUNDLE_ID,
+      skip_binary_upload: true,
+      overwrite_screenshots: true,
+      force: true,
+      submit_for_review: true,
+      automatic_release: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: false
+      }
+    )
+  end
 end

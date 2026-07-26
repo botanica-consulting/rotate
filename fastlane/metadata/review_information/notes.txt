@@ -1,0 +1,5 @@
+Rotate is a site-rotation journal. No account or login is required — the app opens straight to its home screen.
+
+It does not read glucose, calculate insulin doses, connect to any pump/CGM/Bluetooth device, or contact any server. All data is stored locally with SwiftData and syncs only to the tester's own private iCloud (CloudKit); with no iCloud account it stays on-device.
+
+The optional "continue in Loop" hand-off only opens the Loop app via its URL scheme if it happens to be installed; it is not required to use any feature of Rotate.

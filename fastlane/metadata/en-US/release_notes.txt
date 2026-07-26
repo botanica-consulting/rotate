@@ -1,0 +1,1 @@
+First public release of Rotate: two independent rotation tracks for your pump and sensor, a body-map recency heatmap, least-recently-used site suggestions, a running journal, and private iCloud sync.
