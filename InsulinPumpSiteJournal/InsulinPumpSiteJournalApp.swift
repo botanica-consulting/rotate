@@ -90,6 +90,15 @@ struct AppRootView: View {
 
     /// The live store's configuration — shared so container creation and
     /// `deleteStoreFiles()` always resolve the same store URL.
+    ///
+    /// CloudKit keeps Development and Production schemas separate, and only
+    /// Development auto-creates record types from this model — Production
+    /// never does. So after changing `PlacementRecord`: run a debug build and
+    /// save a record (types are created lazily, on first export), then
+    /// CloudKit Dashboard → Deploy Schema Changes, *before* shipping the build
+    /// that needs the new fields. TestFlight and App Store builds use
+    /// Production, where a missing field fails silently — no error, sync just
+    /// stops working. See issue #3.
     private static func storeConfiguration() -> ModelConfiguration {
         ModelConfiguration(cloudKitDatabase: .private("iCloud.consulting.botanica.rotate"))
     }
