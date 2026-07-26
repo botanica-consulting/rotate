@@ -133,13 +133,16 @@ struct SettingsView: View {
     private var footerSection: some View {
         Section {
         } footer: {
-            VStack(spacing: 6) {
-                Text("Your journal is stored on this device and syncs through your private iCloud database, readable only by your Apple Account. No third-party servers are involved.")
+            VStack(spacing: 14) {
+                Text("Syncs only to your private iCloud — Rotate never keeps your data on its own servers.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                Text("Rotate \(appVersion) (\(appBuild))")
+                Text("Version \(appVersion) (\(appBuild))")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
             }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .center)
             .accessibilityIdentifier("versionFooter")
         }
@@ -154,8 +157,8 @@ struct SettingsView: View {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     }
 
-    /// Build number (CFBundleVersion) — the fastlane beta lane stamps this
-    /// with a UTC timestamp per upload.
+    /// Build number (CFBundleVersion) — the fastlane beta lane stamps this with
+    /// a UTC datecode per upload, matching what TestFlight shows.
     private var appBuild: String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
     }
