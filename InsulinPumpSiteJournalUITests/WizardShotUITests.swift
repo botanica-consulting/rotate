@@ -24,8 +24,13 @@ final class WizardShotUITests: XCTestCase {
         snap("wizard-2")
 
         app.buttons["wizardContinueButton"].tap()
-        Thread.sleep(forTimeInterval: 1.6) // let the heatmap tour animate a little
-        snap("wizard-3")
+        // Capture the scripted rotation at several beats so the movement shows.
+        Thread.sleep(forTimeInterval: 0.8)
+        snap("wizard-3a-seed")
+        Thread.sleep(forTimeInterval: 1.7)
+        snap("wizard-3b-pump-moved")
+        Thread.sleep(forTimeInterval: 3.0)
+        snap("wizard-3c-later")
 
         // Last page → pushes the mandatory disclaimer.
         app.buttons["wizardContinueButton"].tap()

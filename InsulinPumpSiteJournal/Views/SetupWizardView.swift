@@ -87,7 +87,7 @@ struct SetupWizardView: View {
 
 private struct WizardPage: Identifiable {
     enum Hero {
-        case sites
+        case logo
         case devices
         case heatmap
     }
@@ -99,16 +99,16 @@ private struct WizardPage: Identifiable {
 
     static let all: [WizardPage] = [
         WizardPage(
-            id: "sites",
-            hero: .sites,
+            id: "intro",
+            hero: .logo,
             title: "Rotate",
-            message: "Your pump and sensor go in a handful of spots around the body. Rotate keeps a simple map of them."
+            message: "Rotate is an AID/CGM journaling app, meant to help you rotate between injection sites easily."
         ),
         WizardPage(
             id: "devices",
             hero: .devices,
             title: "One helper, two devices",
-            message: "Rotate helps you choose the next site for your continuous glucose monitor and your automatic insulin delivery pump — each on its own rotation."
+            message: "Rotate tracks your pump and sensor separately and clearly."
         ),
         WizardPage(
             id: "heatmap",
@@ -144,8 +144,8 @@ private struct WizardPageView: View {
     @ViewBuilder
     private var hero: some View {
         switch page.hero {
-        case .sites:
-            SiteHighlightFigure(bodyType: bodyType)
+        case .logo:
+            LogoHero()
         case .devices:
             DeviceHeroView()
         case .heatmap:
@@ -154,42 +154,19 @@ private struct WizardPageView: View {
     }
 }
 
-// MARK: Page 1 — silhouette with areas, intermittent highlight
+// MARK: Page 1 — the app logo
 
-/// The front silhouette with every front mounting area outlined; one area at a
-/// time lights up, cycling slowly, so the figure reads as "these are the
-/// spots" without any color-code meaning yet.
-private struct SiteHighlightFigure: View {
-    let bodyType: BodyType
-
-    private let sites = PumpSite.catalog.filter { $0.bodyView == .front }
-    @State private var highlight = 0
-
+/// The app icon itself, rounded like on the Home Screen — no silhouette here,
+/// since the body figure carries the later pages.
+private struct LogoHero: View {
     var body: some View {
-        BodySilhouette(bodyType: bodyType, bodyView: .front)
-            .overlay {
-                GeometryReader { _ in
-                    ForEach(Array(sites.enumerated()), id: \.element.id) { index, site in
-                        if let area = SiteAreaCatalog.area(for: site.id, bodyType: bodyType) {
-                            SiteAreaHighlight(
-                                area: area,
-                                fill: index == highlight ? AppTheme.glucose : .clear
-                            )
-                            .opacity(index == highlight ? 1 : 0.9)
-                        }
-                    }
-                }
-            }
-            .task {
-                guard sites.count > 1 else { return }
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(1.4))
-                    if Task.isCancelled { return }
-                    withAnimation(.easeInOut(duration: 0.6)) {
-                        highlight = (highlight + 1) % sites.count
-                    }
-                }
-            }
+        Image("AppLogo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 150, height: 150)
+            .clipShape(RoundedRectangle(cornerRadius: 33, style: .continuous))
+            .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
+            .accessibilityHidden(true)
     }
 }
 
@@ -226,56 +203,59 @@ private struct DeviceHeroView: View {
     }
 }
 
-// MARK: Page 3 — animated body-map heatmap demo
+// MARK: Page 3 — scripted rotation on a live body map
 
-/// A living body map: the front and rear figures start as a spread-out
-/// heatmap, then the view zooms into one site at a time, that site's color
-/// deepening as if just used, before pulling back out — a few cycles, then the
-/// whole map resets and it plays again.
+/// A hands-off replay of the app in use: the front and rear figures start
+/// seeded with a pump and a sensor already on the body and some past-use heat,
+/// then the pump slides to its next two sites and the sensor to its next one —
+/// each vacated spot heating up and the older heat cooling, exactly as the real
+/// heatmap moves. After the run it resets and plays again.
 private struct BodyMapDemoView: View {
     let bodyType: BodyType
 
-    /// Sites walked through on each pass — a spread across both views, each
-    /// starting rested so the "just got used" color change is visible.
-    private static let tourSiteIDs = [
-        "abdomen-left",
-        "back-upper-arm-right",
-        "front-thigh-right",
-        "lower-back-left",
-        "upper-buttock-right",
-    ]
-
-    /// Recency depth per site, 0 (rested) … 3 (just used).
-    @State private var usage: [String: Int] = BodyMapDemoView.initialUsage()
-    @State private var focusedSiteID: String?
+    /// Recency depth per site, 0 (rested) … 3 (just used). Higher = hotter.
+    @State private var usage: [String: Int] = [:]
+    /// Where each device currently sits; the badge floats when this changes.
+    @State private var pumpSite = ""
+    @State private var sensorSite = ""
 
     var body: some View {
-        ZStack {
-            HStack(alignment: .top, spacing: 18) {
-                figure(.front)
-                figure(.rear)
-            }
-            .opacity(focusedSiteID == nil ? 1 : 0)
-
-            if let id = focusedSiteID, let site = PumpSite.site(for: id) {
-                VignettedBodyThumbnail(site: site, fill: color(for: id))
-                    .transition(.opacity)
-            }
+        HStack(alignment: .top, spacing: 18) {
+            figure(.front)
+            figure(.rear)
         }
-        .task { await runTour() }
+        .task { await runScenario() }
     }
 
     private func figure(_ bodyView: PumpSite.BodyView) -> some View {
         BodySilhouette(bodyType: bodyType, bodyView: bodyView)
             .overlay {
-                GeometryReader { _ in
+                GeometryReader { geometry in
                     ForEach(PumpSite.catalog.filter { $0.bodyView == bodyView }) { site in
                         if let area = SiteAreaCatalog.area(for: site.id, bodyType: bodyType) {
                             SiteAreaHighlight(area: area, fill: color(for: site.id))
                         }
                     }
+                    badge(.pump, on: bodyView, in: geometry)
+                    badge(.cgm, on: bodyView, in: geometry)
                 }
             }
+    }
+
+    /// The current-site marker for a device, drawn only on the figure that
+    /// hosts its current site. Positioned by the site's marker, so a change of
+    /// site animates as a float across the figure.
+    @ViewBuilder
+    private func badge(_ device: DeviceType, on bodyView: PumpSite.BodyView, in geometry: GeometryProxy) -> some View {
+        let siteID = device == .pump ? pumpSite : sensorSite
+        if let site = PumpSite.site(for: siteID), site.bodyView == bodyView {
+            CurrentSiteBadge(device: device)
+                .scaleEffect(AppTheme.currentBadgeMapScale)
+                .position(
+                    x: geometry.size.width * site.markerPosition.x,
+                    y: geometry.size.height * site.markerPosition.y
+                )
+        }
     }
 
     private func color(for siteID: String) -> Color {
@@ -284,35 +264,61 @@ private struct BodyMapDemoView: View {
         return AppTheme.color(for: tiers[index])
     }
 
-    private func runTour() async {
+    // MARK: Script
+
+    private func runScenario() async {
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(1.1))
-            for id in Self.tourSiteIDs {
-                if Task.isCancelled { return }
-                withAnimation(.easeInOut(duration: 0.45)) { focusedSiteID = id }
-                try? await Task.sleep(for: .seconds(0.6))
-                withAnimation(.easeInOut(duration: 0.8)) {
-                    usage[id] = min(3, (usage[id] ?? 0) + 2)
-                }
-                try? await Task.sleep(for: .seconds(0.85))
-                withAnimation(.easeInOut(duration: 0.45)) { focusedSiteID = nil }
-                try? await Task.sleep(for: .seconds(0.5))
-            }
-            try? await Task.sleep(for: .seconds(0.9))
-            withAnimation(.easeInOut(duration: 1.0)) { usage = Self.initialUsage() }
+            withAnimation(.easeInOut(duration: 0.9)) { seed() }
+            if await pause(1.6) { return }
+
+            if await step({ move(.pump, to: "abdomen-right") }, then: 1.5) { return }
+            if await step({ move(.pump, to: "front-thigh-left") }, then: 1.5) { return }
+            if await step({ move(.cgm, to: "back-upper-arm-right") }, then: 1.6) { return }
+
+            if await pause(1.2) { return } // hold the finished map before looping
         }
     }
 
-    /// A varied starting heatmap so the map reads as lived-in before the tour.
-    private static func initialUsage() -> [String: Int] {
-        var usage: [String: Int] = [:]
-        for site in PumpSite.catalog { usage[site.id] = 0 }
-        usage["abdomen-right"] = 3
-        usage["back-upper-arm-left"] = 2
-        usage["outer-thigh-left"] = 1
-        usage["lower-back-right"] = 2
-        usage["upper-buttock-left"] = 1
-        return usage
+    /// Applies a scripted change with animation, then holds. Returns true if
+    /// the task was cancelled while waiting.
+    private func step(_ change: @escaping () -> Void, then seconds: Double) async -> Bool {
+        withAnimation(.easeInOut(duration: 0.9)) { change() }
+        return await pause(seconds)
+    }
+
+    private func pause(_ seconds: Double) async -> Bool {
+        try? await Task.sleep(for: .seconds(seconds))
+        return Task.isCancelled
+    }
+
+    /// Moves a device to a new site the way a real placement would shift the
+    /// heat: everything cools one step, the vacated site and the new site turn
+    /// hottest, and both devices' current sites stay hot (they're in use).
+    private func move(_ device: DeviceType, to newSite: String) {
+        for key in usage.keys where (usage[key] ?? 0) > 0 { usage[key]! -= 1 }
+        let from = device == .pump ? pumpSite : sensorSite
+        usage[from] = 3
+        if device == .pump { pumpSite = newSite } else { sensorSite = newSite }
+        usage[newSite] = 3
+        usage[pumpSite] = 3
+        usage[sensorSite] = 3
+    }
+
+    /// The starting board: a pump and a sensor already placed, plus a little
+    /// past-use heat so the map reads as lived-in before the run.
+    private func seed() {
+        var seeded: [String: Int] = [:]
+        for site in PumpSite.catalog { seeded[site.id] = 0 }
+        pumpSite = "abdomen-left"
+        sensorSite = "back-upper-arm-left"
+        seeded[pumpSite] = 3
+        seeded[sensorSite] = 3
+        seeded["abdomen-right"] = 2
+        seeded["front-thigh-right"] = 1
+        seeded["back-upper-arm-right"] = 1
+        seeded["lower-back-left"] = 2
+        seeded["upper-buttock-right"] = 1
+        usage = seeded
     }
 }
 
