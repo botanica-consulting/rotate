@@ -51,9 +51,11 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        # Portrait-only apps must opt out of iPad multitasking or App Store
-        # validation rejects the upload (ITMS-90474).
-        UIRequiresFullScreen: true
+        # Deliberately no UIRequiresFullScreen. It only opts out of *iPad*
+        # multitasking, and this is an iPhone-only app (TARGETED_DEVICE_FAMILY
+        # 1), so ITMS-90474 cannot apply — the key was defensive, never a fix
+        # for a real rejection. iOS 26 deprecates it and warns at build time.
+        # Don't re-add it unless iPad support is declared.
         ITSAppUsesNonExemptEncryption: false
         # Loop registers the loop:// scheme; declaring it lets the handoff
         # check canOpenURL and open Loop after a placement is confirmed.
