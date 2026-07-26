@@ -6,18 +6,13 @@ import Testing
 /// The CGM sensor vertical: a second rotation track that shares the record
 /// store and site geometry with the pump track but is journaled independently.
 struct DeviceTrackTests {
-    @Test func cgmCatalogIsTheSixSensorSites() {
-        let ids = PumpSite.sites(for: .cgm).map(\.id)
-        #expect(ids == [
-            "back-upper-arm-left",
-            "back-upper-arm-right",
-            "abdomen-left",
-            "abdomen-right",
-            "upper-buttock-left",
-            "upper-buttock-right",
-        ])
-        // Sensor sites are a subset of the pump catalog and reuse its baked
-        // area geometry for every body type — no new artwork.
+    @Test func cgmCatalogIsTheFullBodyCatalog() {
+        // Both tracks support every site; the sensor is narrowed only by the
+        // per-track area toggles in Settings, not by a baked-in subset.
+        #expect(PumpSite.sites(for: .cgm).map(\.id) == PumpSite.catalog.map(\.id))
+
+        // Every sensor site reuses the pump catalog's baked area geometry for
+        // every body type — no sensor-specific artwork.
         for site in PumpSite.sites(for: .cgm) {
             #expect(PumpSite.site(for: site.id) != nil)
             for bodyType in BodyType.allCases {
@@ -29,9 +24,9 @@ struct DeviceTrackTests {
         }
     }
 
-    @Test func cgmSitesSpanThreeSensorRegions() {
+    @Test func cgmSitesSpanEveryRegion() {
         let regions = Set(PumpSite.sites(for: .cgm).map(\.region))
-        #expect(regions == [.arm, .abdomen, .upperButtock])
+        #expect(regions == Set(PumpSite.Region.allCases))
     }
 
     @Test func perDeviceTimelinesHaveIndependentCurrent() {
@@ -57,11 +52,11 @@ struct DeviceTrackTests {
         #expect(PlacementTimeline(records: records).entries.first?.deviceType == .cgm)
     }
 
-    @Test func cgmSuggestionsNeverLeaveTheSensorCatalog() {
+    @Test func cgmSuggestionsStayWithinTheSensorCatalog() {
         let engine = SiteSuggestionEngine()
-        let sensorIDs = Set(PumpSite.cgmSiteIDs)
+        let sensorIDs = Set(PumpSite.sites(for: .cgm).map(\.id))
 
-        // Empty history → the sensor starters, in order.
+        // Empty history → the sensor starter defaults, in order.
         let starters = engine.suggestions(
             from: PumpSite.sites(for: .cgm),
             history: [],

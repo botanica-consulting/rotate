@@ -112,6 +112,26 @@ the app simply stays local until one appears. CloudKit's silent pushes (the
 device requires a development team with the iCloud capability; with automatic signing, Xcode
 provisions the container on first build.
 
+### Deploying the schema (required after any model change)
+
+CloudKit keeps **Development** and **Production** schemas separate. Debug builds use
+Development, where SwiftData creates record types automatically; TestFlight and App Store
+builds use Production, which **never** auto-creates anything. A field that exists only in
+Development fails silently in released builds — no error, sync just stops.
+
+So whenever `PlacementRecord` gains or renames a property, before shipping the build that
+needs it:
+
+1. Run a debug build and save a record. Record types and fields are created lazily, on first
+   export — an empty store creates nothing.
+2. CloudKit Dashboard → the container → Development → **Deploy Schema Changes…**, review the
+   diff, deploy.
+3. Confirm the field is listed under Production → Record Types.
+
+The deploy is server-side, so already-installed builds pick it up without a new upload. This
+is also automatable via `xcrun cktool import-schema --environment production`, which needs an
+account-level CloudKit management token (not the container-scoped tokens under Tokens & Keys).
+
 ## Privacy
 
 Rotate collects nothing. There is no account, no server, no analytics, and no third-party SDK.
