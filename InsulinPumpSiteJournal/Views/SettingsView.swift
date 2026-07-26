@@ -265,35 +265,57 @@ struct RegionSettingsView: View {
     }
 
     var body: some View {
+        let disabled = RegionSettings.parse(disabledRaw)
         List {
             Section {
                 ForEach(PumpSite.Region.allCases) { region in
-                    Toggle(region.displayName, isOn: binding(for: region))
-                        .accessibilityIdentifier("regionToggle-\(region.rawValue)")
+                    Button {
+                        toggle(region)
+                    } label: {
+                        row(for: region, isOn: !disabled.contains(region))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("regionOption-\(region.rawValue)")
                 }
             } footer: {
-                Text("Turn off any region you don't use for your \(device.noun). Excluded regions won't be suggested or shown on the body map for this track. Records already on those sites are kept.")
+                Text("Tap to include or exclude a region for your \(device.noun). Excluded regions are greyed out and won't be suggested or shown on the body map for this track. Records already on those sites are kept.")
             }
         }
         .navigationTitle("\(device.displayName) areas")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func binding(for region: PumpSite.Region) -> Binding<Bool> {
-        Binding(
-            get: { !RegionSettings.parse(disabledRaw).contains(region) },
-            set: { isOn in
-                var disabled = RegionSettings.parse(disabledRaw)
-                if isOn {
-                    disabled.remove(region)
-                } else {
-                    // Keep at least one region enabled.
-                    guard disabled.count < PumpSite.Region.allCases.count - 1 else { return }
-                    disabled.insert(region)
-                }
-                disabledRaw = RegionSettings.encode(disabled)
-            }
-        )
+    /// A checklist row in the silhouette-picker style: an included region shows
+    /// a filled checkmark in the track's tint; an excluded one greys out with
+    /// an empty circle.
+    private func row(for region: PumpSite.Region, isOn: Bool) -> some View {
+        HStack {
+            Text(region.displayName)
+                .foregroundStyle(isOn ? .primary : .secondary)
+            Spacer()
+            Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                .font(.title3)
+                .foregroundStyle(isOn ? AppTheme.tint(for: device) : Color(.tertiaryLabel))
+                .accessibilityHidden(true)
+        }
+        .contentShape(.rect)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(region.displayName)
+        .accessibilityValue(isOn ? "Included" : "Excluded")
+        .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func toggle(_ region: PumpSite.Region) {
+        var disabled = RegionSettings.parse(disabledRaw)
+        if disabled.contains(region) {
+            disabled.remove(region)
+        } else {
+            // Keep at least one region enabled — a track with none has nothing
+            // to rotate through.
+            guard disabled.count < PumpSite.Region.allCases.count - 1 else { return }
+            disabled.insert(region)
+        }
+        disabledRaw = RegionSettings.encode(disabled)
     }
 }
 
