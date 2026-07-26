@@ -7,13 +7,7 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(CompanionApp.storageKey(for: .pump)) private var pumpCompanionRaw = CompanionApp.loop.rawValue
-    @AppStorage(CompanionApp.storageKey(for: .cgm)) private var sensorCompanionRaw = CompanionApp.loop.rawValue
     @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
-    // Observed so the "Rotation areas" summaries refresh when the sub-screens
-    // change them.
-    @AppStorage(AreaSettings.storageKey(for: .pump)) private var pumpDisabledSites = ""
-    @AppStorage(AreaSettings.storageKey(for: .cgm)) private var sensorDisabledSites = ""
     @State private var confirmingReset = false
     /// Typed reset confirmation — the journal now syncs, so a reset reaches
     /// every device. Deleting requires typing RESET, not just a second tap.
@@ -24,10 +18,9 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 silhouetteSection
-                deviceSection(for: .pump, companion: $pumpCompanionRaw, disabledRaw: pumpDisabledSites)
-                deviceSection(for: .cgm, companion: $sensorCompanionRaw, disabledRaw: sensorDisabledSites)
+                devicesSection
                 resetSection
-                aboutSection
+                footerSection
             }
             .alert(
                 "Delete all placement records?",
@@ -100,46 +93,25 @@ struct SettingsView: View {
         }
     }
 
-    /// Everything specific to one track — its companion app and its rotation
-    /// areas — collected under a single header, so the pump's settings and the
-    /// sensor's settings each live in one place instead of being spread across
-    /// the screen.
+    /// One row per track, each opening that track's own settings screen — a
+    /// clear home for everything pump- or sensor-specific, with room to grow.
     @ViewBuilder
-    private func deviceSection(
-        for device: DeviceType,
-        companion: Binding<String>,
-        disabledRaw: String
-    ) -> some View {
+    private var devicesSection: some View {
         Section {
-            Picker("Companion app", selection: companion) {
-                ForEach(CompanionApp.options(for: device)) { app in
-                    Text(app.displayName).tag(app.rawValue)
-                }
-            }
-            .accessibilityIdentifier(device == .pump ? "pumpCompanionPicker" : "sensorCompanionPicker")
-            areaLink(for: device, disabledRaw: disabledRaw)
-        } header: {
-            Text(device.displayName)
+            deviceLink(for: .pump)
+            deviceLink(for: .cgm)
         } footer: {
-            Text("Confirming a \(device.noun) placement opens its companion app to activate and pair — choose None to stay in Rotate. Rotation areas set where new \(device.noun) sites can be suggested.")
+            Text("Companion app and areas for each track.")
         }
     }
 
-    private func areaLink(for device: DeviceType, disabledRaw: String) -> some View {
-        let total = PumpSite.catalog.count
-        let enabled = total - AreaSettings.parse(disabledRaw).count
-        return NavigationLink {
-            AreaSettingsView(device: device)
+    private func deviceLink(for device: DeviceType) -> some View {
+        NavigationLink {
+            DeviceSettingsView(device: device)
         } label: {
-            HStack {
-                Text("Rotation areas")
-                Spacer()
-                Text(enabled == total ? "All areas" : "\(enabled) of \(total)")
-                    .foregroundStyle(.secondary)
-            }
+            Text(device.displayName)
         }
-        .accessibilityIdentifier(device == .pump ? "pumpRegionsLink" : "sensorRegionsLink")
-        .accessibilityLabel("\(device.displayName) rotation areas, \(enabled) of \(total) on")
+        .accessibilityIdentifier(device == .pump ? "pumpSettingsLink" : "sensorSettingsLink")
     }
 
     @ViewBuilder
@@ -154,17 +126,22 @@ struct SettingsView: View {
         }
     }
 
+    /// No boxed "About" rows — just a quiet footer at the bottom carrying the
+    /// privacy note and the version/build, so the numbers stay available
+    /// without drawing the eye.
     @ViewBuilder
-    private var aboutSection: some View {
+    private var footerSection: some View {
         Section {
-            LabeledContent("Version", value: appVersion)
-                .accessibilityIdentifier("appVersionRow")
-            LabeledContent("Build", value: appBuild)
-                .accessibilityIdentifier("appBuildRow")
-        } header: {
-            Text("About")
         } footer: {
-            Text("Privacy: your journal is stored on this device and syncs through your private iCloud database, readable only by your Apple Account. No third-party servers are involved.")
+            VStack(spacing: 6) {
+                Text("Your journal is stored on this device and syncs through your private iCloud database, readable only by your Apple Account. No third-party servers are involved.")
+                    .multilineTextAlignment(.center)
+                Text("Rotate \(appVersion) (\(appBuild))")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .accessibilityIdentifier("versionFooter")
         }
     }
 
@@ -190,6 +167,71 @@ struct SettingsView: View {
         } catch {
             resetError = error
         }
+    }
+}
+
+/// One track's own settings, reached from the Pump / Sensor rows: its
+/// companion app and its rotation areas, each with room for more. The pump and
+/// the sensor keep independent companions and area sets.
+struct DeviceSettingsView: View {
+    let device: DeviceType
+    @AppStorage private var companionRaw: String
+    // Observed so the Areas summary refreshes when the picker changes it.
+    @AppStorage private var disabledRaw: String
+
+    init(device: DeviceType) {
+        self.device = device
+        self._companionRaw = AppStorage(
+            wrappedValue: CompanionApp.loop.rawValue,
+            CompanionApp.storageKey(for: device)
+        )
+        self._disabledRaw = AppStorage(
+            wrappedValue: "",
+            AreaSettings.storageKey(for: device)
+        )
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Companion app", selection: $companionRaw) {
+                    ForEach(CompanionApp.options(for: device)) { app in
+                        Text(app.displayName).tag(app.rawValue)
+                    }
+                }
+                .accessibilityIdentifier(device == .pump ? "pumpCompanionPicker" : "sensorCompanionPicker")
+            } footer: {
+                Text("Confirming a \(device.noun) placement opens its companion app to activate and pair — choose None to stay in Rotate.")
+            }
+
+            Section {
+                NavigationLink {
+                    AreaSettingsView(device: device)
+                } label: {
+                    HStack {
+                        Text("Areas")
+                        Spacer()
+                        Text(areaSummary)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityIdentifier(device == .pump ? "pumpRegionsLink" : "sensorRegionsLink")
+                .accessibilityLabel("Areas, \(enabledAreaCount) of \(PumpSite.catalog.count) on")
+            } footer: {
+                Text("Choose which body areas can be suggested and shown on the body map for your \(device.noun).")
+            }
+        }
+        .navigationTitle(device.displayName)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var enabledAreaCount: Int {
+        PumpSite.catalog.count - AreaSettings.parse(disabledRaw).count
+    }
+
+    private var areaSummary: String {
+        let total = PumpSite.catalog.count
+        return enabledAreaCount == total ? "All areas" : "\(enabledAreaCount) of \(total)"
     }
 }
 
@@ -389,6 +431,12 @@ private struct AreaToggleCard: View {
 
 #Preview("Settings") {
     SettingsView()
+}
+
+#Preview("Device settings") {
+    NavigationStack {
+        DeviceSettingsView(device: .pump)
+    }
 }
 
 #Preview("Area settings") {
