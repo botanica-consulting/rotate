@@ -250,7 +250,11 @@ private struct BodyMapDemoView: View {
         let siteID = device == .pump ? pumpSite : sensorSite
         if let site = PumpSite.site(for: siteID), site.bodyView == bodyView {
             CurrentSiteBadge(device: device)
-                .scaleEffect(AppTheme.currentBadgeMapScale)
+                // The badge is a fixed-point size; on these compact demo
+                // figures that reads oversized, so scale it to the same
+                // fraction of the figure width it occupies on the full body
+                // map (~11%) instead of using the map's fixed scale directly.
+                .scaleEffect(geometry.size.width * 0.11 / 21)
                 .position(
                     x: geometry.size.width * site.markerPosition.x,
                     y: geometry.size.height * site.markerPosition.y
@@ -266,23 +270,44 @@ private struct BodyMapDemoView: View {
 
     // MARK: Script
 
+    /// The rotation played out, in order. The pump keeps to front sites and the
+    /// sensor to rear ones, so every move is a smooth float within its figure.
+    /// Interleaved and long enough to read as an ongoing rotation before it
+    /// loops.
+    private static let script: [(DeviceType, String)] = [
+        (.pump, "abdomen-right"),
+        (.cgm, "back-upper-arm-right"),
+        (.pump, "front-thigh-left"),
+        (.cgm, "upper-buttock-left"),
+        (.pump, "front-thigh-right"),
+        (.cgm, "lower-back-right"),
+        (.pump, "abdomen-left"),
+        (.cgm, "outer-thigh-left"),
+        (.pump, "abdomen-right"),
+        (.cgm, "back-upper-arm-left"),
+        (.pump, "front-thigh-left"),
+        (.cgm, "upper-buttock-right"),
+        (.pump, "abdomen-left"),
+        (.cgm, "lower-back-left"),
+    ]
+
     private func runScenario() async {
         while !Task.isCancelled {
-            withAnimation(.easeInOut(duration: 0.9)) { seed() }
-            if await pause(1.6) { return }
+            withAnimation(.easeInOut(duration: 1.0)) { seed() }
+            if await pause(2.0) { return }
 
-            if await step({ move(.pump, to: "abdomen-right") }, then: 1.5) { return }
-            if await step({ move(.pump, to: "front-thigh-left") }, then: 1.5) { return }
-            if await step({ move(.cgm, to: "back-upper-arm-right") }, then: 1.6) { return }
+            for (device, site) in Self.script {
+                if await step({ move(device, to: site) }, then: 1.8) { return }
+            }
 
-            if await pause(1.2) { return } // hold the finished map before looping
+            if await pause(1.6) { return } // hold the finished map before looping
         }
     }
 
     /// Applies a scripted change with animation, then holds. Returns true if
     /// the task was cancelled while waiting.
     private func step(_ change: @escaping () -> Void, then seconds: Double) async -> Bool {
-        withAnimation(.easeInOut(duration: 0.9)) { change() }
+        withAnimation(.easeInOut(duration: 1.0)) { change() }
         return await pause(seconds)
     }
 

@@ -141,15 +141,10 @@ struct HistoryHomeView: View {
     }
 
     private var emptyState: some View {
-        VStack {
-            ContentUnavailableView {
-                Label("No placements yet", systemImage: "figure.arms.open")
-            } description: {
-                Text("Tap New Pump or New Sensor to record your first site.")
-            }
-            safetyFooter
-                .padding(.horizontal)
-                .padding(.bottom, 12)
+        ContentUnavailableView {
+            Label("No placements yet", systemImage: "figure.arms.open")
+        } description: {
+            Text("Tap New Pump or New Sensor to record your first site.")
         }
     }
 
@@ -428,18 +423,6 @@ struct HistoryHomeView: View {
             parts.append("note: \(entry.record.notes)")
         }
         return parts.joined(separator: ", ")
-    }
-
-    private var safetyFooter: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Follow your Omnipod training. Avoid irritated or scarred skin and keep the required spacing between sites.")
-            Link(
-                "Omnipod placement guide",
-                destination: URL(string: "https://www.omnipod.com/current-podders/resources/pod-placement-guide")!
-            )
-        }
-        .font(.footnote)
-        .foregroundStyle(.secondary)
     }
 
     private func siteTitle(for entry: PlacementTimeline.Entry) -> String {
