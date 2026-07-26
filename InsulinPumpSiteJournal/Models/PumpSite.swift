@@ -14,12 +14,26 @@ struct PumpSite: Identifiable, Hashable {
     let markerPosition: CGPoint
     let region: Region
 
-    enum Region: String {
+    enum Region: String, CaseIterable, Identifiable {
         case abdomen
         case arm
         case thigh
         case lowerBack
         case upperButtock
+
+        var id: String { rawValue }
+
+        /// Label for the region toggles in Settings. "Thighs" covers both the
+        /// front and outer-thigh sites, which share this region.
+        var displayName: String {
+            switch self {
+            case .abdomen: "Abdomen"
+            case .arm: "Upper arms"
+            case .thigh: "Thighs"
+            case .lowerBack: "Lower back"
+            case .upperButtock: "Upper buttocks"
+            }
+        }
     }
 }
 
@@ -144,12 +158,11 @@ extension PumpSite {
 
     // MARK: - CGM sensor track
     //
-    // The sensor vertical reuses the pump catalog's geometry: its sites are a
-    // subset of the same entries (same IDs, marker centroids, and baked area
-    // paths in `SiteAreaCatalog`), so no new artwork is needed. Only the set of
-    // approved sensor sites differs — back of upper arm, abdomen, and upper
-    // buttock. Order is significant (the suggestion engine's stable tie-break):
-    // arm first (the primary site), then abdomen, then buttock.
+    // The sensor track uses the same full body catalog as the pump; users
+    // narrow it per track via the region toggles in Settings. These CGM arrays
+    // remain only for sensible defaults — the empty-history starter suggestions
+    // and the debug seed — favoring the common sensor sites (arm, abdomen,
+    // buttock) without limiting where a sensor can go.
     static let cgmSiteIDs: [String] = [
         "back-upper-arm-left",
         "back-upper-arm-right",
@@ -174,12 +187,14 @@ extension PumpSite {
         "back-upper-arm-right",
     ]
 
-    /// The site catalog for a device track.
+    /// The site catalog for a device track: the full body catalog (both tracks
+    /// support every region), minus any regions the user has excluded for this
+    /// track in Settings. `site(for:)` stays unfiltered so historical records
+    /// on an excluded region still render.
     static func sites(for device: DeviceType) -> [PumpSite] {
-        switch device {
-        case .pump: catalog
-        case .cgm: cgmCatalog
-        }
+        let disabled = RegionSettings.disabledRegions(for: device)
+        guard !disabled.isEmpty else { return catalog }
+        return catalog.filter { !disabled.contains($0.region) }
     }
 
     /// The empty-history starter IDs for a device track.

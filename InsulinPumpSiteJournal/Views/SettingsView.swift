@@ -10,6 +10,10 @@ struct SettingsView: View {
     @AppStorage(CompanionApp.storageKey(for: .pump)) private var pumpCompanionRaw = CompanionApp.loop.rawValue
     @AppStorage(CompanionApp.storageKey(for: .cgm)) private var sensorCompanionRaw = CompanionApp.loop.rawValue
     @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
+    // Observed so the "Rotation areas" summaries refresh when the sub-screens
+    // change them.
+    @AppStorage(RegionSettings.storageKey(for: .pump)) private var pumpDisabledRegions = ""
+    @AppStorage(RegionSettings.storageKey(for: .cgm)) private var sensorDisabledRegions = ""
     @State private var confirmingReset = false
     /// Typed reset confirmation — the journal now syncs, so a reset reaches
     /// every device. Deleting requires typing RESET, not just a second tap.
@@ -20,6 +24,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 silhouetteSection
+                regionsSection
                 companionSection
                 resetSection
                 aboutSection
@@ -93,6 +98,35 @@ struct SettingsView: View {
         } footer: {
             Text("The figure shown on the body map and site previews.")
         }
+    }
+
+    @ViewBuilder
+    private var regionsSection: some View {
+        Section {
+            regionLink(for: .pump, disabledRaw: pumpDisabledRegions)
+            regionLink(for: .cgm, disabledRaw: sensorDisabledRegions)
+        } header: {
+            Text("Rotation areas")
+        } footer: {
+            Text("Choose which body regions each track rotates through. Every region is on by default; turn off any you don't use.")
+        }
+    }
+
+    private func regionLink(for device: DeviceType, disabledRaw: String) -> some View {
+        let total = PumpSite.Region.allCases.count
+        let enabled = total - RegionSettings.parse(disabledRaw).count
+        return NavigationLink {
+            RegionSettingsView(device: device)
+        } label: {
+            HStack {
+                Text(device.displayName)
+                Spacer()
+                Text(enabled == total ? "All areas" : "\(enabled) of \(total)")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityIdentifier(device == .pump ? "pumpRegionsLink" : "sensorRegionsLink")
+        .accessibilityLabel("\(device.displayName) areas, \(enabled) of \(total) on")
     }
 
     @ViewBuilder
@@ -218,8 +252,59 @@ struct SilhouettePickerView: View {
     }
 }
 
+/// Per-track region toggles. Excluding a region drops its sites from that
+/// track's suggestions and body map; the last enabled region can't be turned
+/// off, since a track with no regions has nothing to rotate through.
+struct RegionSettingsView: View {
+    let device: DeviceType
+    @AppStorage private var disabledRaw: String
+
+    init(device: DeviceType) {
+        self.device = device
+        self._disabledRaw = AppStorage(wrappedValue: "", RegionSettings.storageKey(for: device))
+    }
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(PumpSite.Region.allCases) { region in
+                    Toggle(region.displayName, isOn: binding(for: region))
+                        .accessibilityIdentifier("regionToggle-\(region.rawValue)")
+                }
+            } footer: {
+                Text("Turn off any region you don't use for your \(device.noun). Excluded regions won't be suggested or shown on the body map for this track. Records already on those sites are kept.")
+            }
+        }
+        .navigationTitle("\(device.displayName) areas")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func binding(for region: PumpSite.Region) -> Binding<Bool> {
+        Binding(
+            get: { !RegionSettings.parse(disabledRaw).contains(region) },
+            set: { isOn in
+                var disabled = RegionSettings.parse(disabledRaw)
+                if isOn {
+                    disabled.remove(region)
+                } else {
+                    // Keep at least one region enabled.
+                    guard disabled.count < PumpSite.Region.allCases.count - 1 else { return }
+                    disabled.insert(region)
+                }
+                disabledRaw = RegionSettings.encode(disabled)
+            }
+        )
+    }
+}
+
 #Preview("Settings") {
     SettingsView()
+}
+
+#Preview("Region settings") {
+    NavigationStack {
+        RegionSettingsView(device: .cgm)
+    }
 }
 
 #Preview("Silhouette picker") {
