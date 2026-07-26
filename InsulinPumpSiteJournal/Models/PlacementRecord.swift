@@ -4,6 +4,10 @@ import SwiftData
 // CloudKit-compatible model: no `@Attribute(.unique)` (CloudKit forbids unique
 // constraints) and every property carries a default value. Do not add either
 // back — it would block enabling iCloud sync later.
+//
+// Adding or renaming a property here also needs a CloudKit Production schema
+// deploy before the build ships — see `storeConfiguration()` in
+// InsulinPumpSiteJournalApp.swift for the procedure.
 @Model
 final class PlacementRecord {
     var id: UUID = UUID()

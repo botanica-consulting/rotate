@@ -39,6 +39,30 @@ Enable capabilities + report the App Store Connect record status (one-time)
 
 Build + upload to TestFlight (cert + sigh, no devices needed)
 
+### ios screenshots
+
+```sh
+[bundle exec] fastlane ios screenshots
+```
+
+Regenerate the App Store screenshots (6.9", clean 9:41 status bar)
+
+### ios metadata
+
+```sh
+[bundle exec] fastlane ios metadata
+```
+
+Upload App Store listing text + screenshots (no binary, no submit)
+
+### ios release
+
+```sh
+[bundle exec] fastlane ios release
+```
+
+Upload metadata + screenshots and submit the latest build for review
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
