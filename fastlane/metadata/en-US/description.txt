@@ -1,0 +1,19 @@
+Rotate is a private, native journal for where you place your insulin pump and CGM sensor — and when. It keeps two independent rotation tracks, one for your pump and one for your sensor, so each area gets the rest it needs.
+
+WHAT IT DOES
+• Log every placement in a tap or two, on a clear body map.
+• See a recency heatmap of your recent sites, so the least-used areas are obvious at a glance.
+• Get least-recently-used, region-diverse suggestions when it's time for a new site.
+• Keep a running history you can look back over.
+• Choose which areas each track rotates through, and a body figure that fits you.
+
+BUILT WITH THE DIY COMMUNITY IN MIND
+After you confirm a placement, Rotate can hand off to your looping app so you can finish setup without hunting for it. Everything works just as well on its own.
+
+PRIVATE BY DESIGN
+Your journal lives on your device and syncs only through your own private iCloud. Rotate has no account, no servers, and no analytics — your data is never sent to us or anyone else. With no iCloud account, it simply stays on your iPhone.
+
+NOT A MEDICAL DEVICE
+Rotate is a journaling and reminder aid. It does not read glucose, calculate insulin doses, diagnose skin or tissue, or communicate with your pump or CGM. Always follow your device's instructions and your care team's guidance for site selection and placement.
+
+Free and open source.

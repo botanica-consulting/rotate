@@ -1,0 +1,1 @@
+rotation,site,pump,cgm,sensor,diabetes,t1d,insulin,journal,tracker,infusion,reminder,pod,loop

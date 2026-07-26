@@ -1,0 +1,1 @@
+A calm, private journal for your pump and CGM sites, with a recency heatmap that makes the least-used areas obvious. On-device, iCloud-synced, no accounts, no servers.

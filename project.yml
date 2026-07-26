@@ -101,7 +101,7 @@ schemes:
         # The screenshot walk is visual QA, not a functional test — it runs
         # in the VisualWalk scheme so default test runs stay fast.
         - name: InsulinPumpSiteJournalUITests
-          skippedTests: [ScreenshotWalkUITests]
+          skippedTests: [ScreenshotWalkUITests, AppStoreScreenshotsUITests]
 
   VisualWalk:
     build:
@@ -114,3 +114,17 @@ schemes:
       targets:
         - name: InsulinPumpSiteJournalUITests
           selectedTests: [ScreenshotWalkUITests]
+
+  # Drives fastlane `snapshot` (see fastlane/Snapfile) — App Store marketing
+  # screenshots only, so it stays out of the default test plan.
+  Screenshots:
+    build:
+      targets:
+        InsulinPumpSiteJournal: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - name: InsulinPumpSiteJournalUITests
+          selectedTests: [AppStoreScreenshotsUITests]
