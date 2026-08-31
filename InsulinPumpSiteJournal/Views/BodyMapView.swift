@@ -137,9 +137,6 @@ struct BodyMapView: View {
         let sites = PumpSite.sites(for: selectedDevice).filter(\.isCustom)
         if !sites.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Your own sites")
-                    .font(.caption.smallCaps())
-                    .foregroundStyle(.secondary)
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
                     spacing: 12

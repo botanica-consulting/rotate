@@ -30,7 +30,7 @@ struct BodyThumbnail: View {
             // draw and nothing to zoom toward: the area floats on its own.
             CustomSiteThumbnail(fill: fill, badgeDevice: badgeDevice)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(site.title), one of your own sites.")
+                .accessibilityLabel(site.title)
         } else {
             bodyFigure
         }
@@ -113,7 +113,7 @@ struct VignettedBodyThumbnail: View {
         if site.isCustom {
             CustomSiteThumbnail(fill: fill, badgeDevice: device)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(site.title), one of your own sites.")
+                .accessibilityLabel(site.title)
         } else {
             vignettedFigure
         }

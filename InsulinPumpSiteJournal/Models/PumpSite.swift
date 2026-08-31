@@ -43,7 +43,9 @@ struct PumpSite: Identifiable, Hashable {
             case .thigh: "Thighs"
             case .lowerBack: "Lower back"
             case .upperButtock: "Upper buttocks"
-            case .custom: "Your own sites"
+            // Deliberately untitled: custom sites are just sites, and a
+            // heading over them would set them apart from the built-ins.
+            case .custom: ""
             }
         }
     }

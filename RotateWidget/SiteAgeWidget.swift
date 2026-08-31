@@ -71,8 +71,9 @@ struct SiteAgeWidget: Widget {
             intent: SelectTrackIntent.self,
             provider: SiteAgeProvider()
         ) { entry in
+            // The background belongs to the view: only the home-screen family
+            // gets a ground, an accessory has to stay clear of the wallpaper.
             SiteAgeWidgetView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Site age")
         .description("How long your current pump or sensor site has been on. Tap to start a new one.")

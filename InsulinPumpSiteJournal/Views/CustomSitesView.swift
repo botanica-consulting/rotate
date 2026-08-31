@@ -48,7 +48,7 @@ struct CustomSitesView: View {
             }
 
             if !active.isEmpty {
-                Section("Your sites") {
+                Section {
                     ForEach(active) { site in
                         row(for: site)
                     }

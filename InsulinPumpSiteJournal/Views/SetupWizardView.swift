@@ -503,7 +503,7 @@ struct WizardConfigView: View {
                 } header: {
                     Text("Your tracks")
                 } footer: {
-                    Text("Rotate is already set up with sensible defaults — every body area on, and a companion app ready to open after each placement. Start now to keep them, or tap a track to adjust which areas it rotates through and which app it opens. Everything is editable later in Settings — including adding your own sites, for spots the figure doesn't cover.")
+                    Text("Rotate is already set up with sensible defaults — every body area on, and a companion app ready to open after each placement. Start now to keep them, or tap a track to adjust which areas it rotates through and which app it opens. Everything is editable later in Settings — including adding custom sites, for spots the figure doesn't cover.")
                 }
             }
             .scrollContentBackground(.hidden)

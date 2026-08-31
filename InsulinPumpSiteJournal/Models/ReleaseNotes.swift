@@ -31,7 +31,7 @@ struct ReleaseNotes: Identifiable {
                 ),
                 Point(
                     icon: "plus.circle.fill",
-                    title: "Add your own sites",
+                    title: "Custom sites",
                     text: "Settings → Custom sites lets you add spots the figure doesn't cover. They rotate, collect recency heat, and can be excluded per track like any other area — they just show as a plain area instead of a place on the body."
                 ),
                 Point(

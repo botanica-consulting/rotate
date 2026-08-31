@@ -448,9 +448,13 @@ struct AreaSettingsView: View {
                     let sites = PumpSite.allSites(for: device).filter { $0.region == region }
                     if !sites.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text(region.displayName)
-                                .font(.headline)
-                                .padding(.horizontal)
+                            // `.custom` has no title — its sites carry on from
+                            // the built-ins rather than being set apart.
+                            if !region.displayName.isEmpty {
+                                Text(region.displayName)
+                                    .font(.headline)
+                                    .padding(.horizontal)
+                            }
                             LazyVGrid(columns: columns, spacing: 16) {
                                 ForEach(sites) { site in
                                     AreaToggleCard(
@@ -519,9 +523,11 @@ private struct AreaToggleCard: View {
                 // the off state doesn't read as a faint tint.
                 .saturation(isOn ? 1 : 0)
 
-                Text(site.isCustom ? "Your own" : (site.bodyView == .front ? "Front" : "Rear"))
-                    .font(.caption2.smallCaps())
-                    .foregroundStyle(.secondary)
+                if !site.isCustom {
+                    Text(site.bodyView == .front ? "Front" : "Rear")
+                        .font(.caption2.smallCaps())
+                        .foregroundStyle(.secondary)
+                }
                 Text(site.title)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(isOn ? .primary : .secondary)
