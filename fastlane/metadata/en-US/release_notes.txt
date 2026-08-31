@@ -1,1 +1,6 @@
-First public release of Rotate: two independent rotation tracks for your pump and sensor, a body-map recency heatmap, least-recently-used site suggestions, a running journal, and private iCloud sync.
+What's new in 1.1.1
+
+• Fix times after the fact — tap any journal entry to change when a site went on or came off.
+• Add your own sites for spots the body figure doesn't cover. They rotate, collect recency heat, and can be included or excluded per track like any other area.
+• Turn iCloud sync off. Sync stays on by default, but you can now keep your journal on one device only — and remove the copy already in your iCloud.
+• Clearer privacy wording: the app now says plainly that Apple holds the synced copy while sync is on, and it hides your journal in the app switcher.

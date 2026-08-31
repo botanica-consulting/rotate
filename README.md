@@ -134,14 +134,18 @@ account-level CloudKit management token (not the container-scoped tokens under T
 
 ## Privacy
 
-Rotate collects nothing. There is no account, no server, no analytics, and no third-party SDK.
-Your journal is stored locally and, if you're signed into iCloud, mirrored to **your** private
-CloudKit database — which only you can read. See [`PRIVACY.md`](PRIVACY.md).
+There is no account, no Botanica server, no analytics, and no third-party SDK — the developer
+never sees your data. The journal itself *is* personal health-related data, and it is stored
+locally and, while iCloud sync is on, mirrored to **your** private CloudKit database, which only
+you can read. iCloud is Apple's server, so sync can be turned off (Settings → iCloud sync) to
+keep everything on one device, with an option to delete the copy already in iCloud. A
+`PrivacyInfo.xcprivacy` manifest ships in the app. See [`PRIVACY.md`](PRIVACY.md).
 
 ## Project layout
 
-- `InsulinPumpSiteJournal/Models/` — `PlacementRecord` (SwiftData) plus the compile-time
-  `PumpSite` catalog (12 sites), `DeviceType`, `CompanionApp`, `BodyType`, and `AreaSettings`.
+- `InsulinPumpSiteJournal/Models/` — `PlacementRecord` and `CustomSite` (SwiftData) plus the
+  compile-time `PumpSite` catalog (12 built-in sites), `DeviceType`, `CompanionApp`, `BodyType`,
+  `AreaSettings`, `CustomSiteStore`, `SyncSettings`, and `ReleaseNotes`.
 - `InsulinPumpSiteJournal/Services/` — `SiteSuggestionEngine` (LRU + region-diversity picker),
   `SiteRecencyModel`, and the `SVGAreaPath` parser behind the body-map areas.
 - `InsulinPumpSiteJournal/Views/` — history home, the new-placement flow (suggestions → confirm
