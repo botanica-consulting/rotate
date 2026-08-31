@@ -14,16 +14,21 @@
 # `xcodegen generate` before `fastlane beta`.
 #
 # One-time setup for a fresh Apple account/team:
-#   1. fastlane register_app   — register the bundle id
-#   2. fastlane setup_app      — enable Push + iCloud(CloudKit) capabilities
+#   1. fastlane register_app   — register the app + widget bundle ids
+#   2. fastlane setup_app      — enable Push + iCloud(CloudKit) + App Groups
 #   3. On the Apple websites (an API key can't do these): create the App Store
-#      Connect app record, and create + assign the CloudKit container.
+#      Connect app record, create + assign the CloudKit container, and create
+#      the App Group + assign it to both bundle ids.
 # Then `fastlane beta` for every build.
 
 default_platform(:ios)
 
 platform :ios do
   LOCAL_BUNDLE_ID = "consulting.botanica.rotate"
+  # The widget extension ships inside the app but is signed separately, with its
+  # own bundle id and its own provisioning profile.
+  LOCAL_WIDGET_BUNDLE_ID = "consulting.botanica.rotate.widget"
+  APP_GROUP_ID = "group.consulting.botanica.rotate"
   LOCAL_PROJECT = File.expand_path("../InsulinPumpSiteJournal.xcodeproj", __dir__)
 
   desc "Register the app's bundle id with Apple (one-time)"
@@ -33,11 +38,13 @@ platform :ios do
       issuer_id: ENV["FASTLANE_ISSUER_ID"],
       key_filepath: File.expand_path(ENV["FASTLANE_KEY_PATH"])
     )
-    if Spaceship::ConnectAPI::BundleId.find(LOCAL_BUNDLE_ID)
-      UI.success("Bundle id #{LOCAL_BUNDLE_ID} already registered")
-    else
-      Spaceship::ConnectAPI::BundleId.create(name: "Rotate", identifier: LOCAL_BUNDLE_ID, platform: "IOS")
-      UI.success("Registered bundle id #{LOCAL_BUNDLE_ID}")
+    [[LOCAL_BUNDLE_ID, "Rotate"], [LOCAL_WIDGET_BUNDLE_ID, "Rotate Widget"]].each do |identifier, name|
+      if Spaceship::ConnectAPI::BundleId.find(identifier)
+        UI.success("Bundle id #{identifier} already registered")
+      else
+        Spaceship::ConnectAPI::BundleId.create(name: name, identifier: identifier, platform: "IOS")
+        UI.success("Registered bundle id #{identifier}")
+      end
     end
   end
 
@@ -78,6 +85,23 @@ platform :ios do
       UI.success("Enabled iCloud (CloudKit) on #{LOCAL_BUNDLE_ID}")
     end
 
+    # App Groups, on both ids: the widget reads the site snapshot the app writes
+    # there. The capability can be enabled by API, but *assigning* the specific
+    # group to a bundle id cannot — that stays a website step.
+    app_groups = Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS
+    [LOCAL_BUNDLE_ID, LOCAL_WIDGET_BUNDLE_ID].each do |identifier|
+      id_record = Spaceship::ConnectAPI::BundleId.find(identifier)
+      UI.user_error!("#{identifier} not registered — run `fastlane register_app` first") unless id_record
+
+      if id_record.get_capabilities.map(&:capability_type).include?(app_groups)
+        UI.message("App Groups already enabled on #{identifier}")
+      else
+        id_record.create_capability(app_groups)
+        UI.success("Enabled App Groups on #{identifier}")
+      end
+    end
+    UI.important("Create the App Group #{APP_GROUP_ID} and assign it to both bundle ids at https://developer.apple.com/account/resources/identifiers — an API key can't do this.")
+
     if Spaceship::ConnectAPI::App.find(LOCAL_BUNDLE_ID)
       UI.success("App Store Connect record for #{LOCAL_BUNDLE_ID} exists")
     else
@@ -104,21 +128,36 @@ platform :ios do
     # Distribution certificate + App Store provisioning profile. Neither needs
     # a registered device, unlike automatic development signing.
     get_certificates(api_key: api_key)
+
+    # One profile per signed target. The widget extension is embedded in the app
+    # but signed in its own right, so gym needs both mappings.
     get_provisioning_profile(
       api_key: api_key,
       app_identifier: LOCAL_BUNDLE_ID,
       team_id: ENV["TEAMID"]
     )
-    profile_name = lane_context[SharedValues::SIGH_NAME]
+    app_profile = lane_context[SharedValues::SIGH_NAME]
 
-    update_code_signing_settings(
-      path: LOCAL_PROJECT,
-      use_automatic_signing: false,
-      team_id: ENV["TEAMID"],
-      code_sign_identity: "Apple Distribution",
-      profile_name: profile_name,
-      targets: ["InsulinPumpSiteJournal"]
+    get_provisioning_profile(
+      api_key: api_key,
+      app_identifier: LOCAL_WIDGET_BUNDLE_ID,
+      team_id: ENV["TEAMID"]
     )
+    widget_profile = lane_context[SharedValues::SIGH_NAME]
+
+    {
+      "InsulinPumpSiteJournal" => app_profile,
+      "RotateWidget" => widget_profile
+    }.each do |target, profile|
+      update_code_signing_settings(
+        path: LOCAL_PROJECT,
+        use_automatic_signing: false,
+        team_id: ENV["TEAMID"],
+        code_sign_identity: "Apple Distribution",
+        profile_name: profile,
+        targets: [target]
+      )
+    end
 
     gym(
       project: LOCAL_PROJECT,
@@ -129,7 +168,10 @@ platform :ios do
       export_options: {
         signingStyle: "manual",
         teamID: ENV["TEAMID"],
-        provisioningProfiles: { LOCAL_BUNDLE_ID => profile_name }
+        provisioningProfiles: {
+          LOCAL_BUNDLE_ID => app_profile,
+          LOCAL_WIDGET_BUNDLE_ID => widget_profile
+        }
       },
       output_directory: File.expand_path("..", __dir__),
       output_name: "Rotate.ipa",

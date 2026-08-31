@@ -1,8 +1,16 @@
+import AppIntents
 import SwiftUI
 import SwiftData
 
 @main
 struct InsulinPumpSiteJournalApp: App {
+    init() {
+        // Registered here, not in a view: an intent can run before any view
+        // exists (Siri on a cold launch), and StartPlacementIntent resolves the
+        // router through @Dependency.
+        AppDependencyManager.shared.add(dependency: AppRouter.shared)
+    }
+
     var body: some Scene {
         WindowGroup {
             AppRootView()
@@ -37,6 +45,11 @@ struct AppRootView: View {
                 containerResult = Self.makeContainer()
             }
             .overlay { privacyShield }
+            // A widget tap. The router holds the request until the journal is on
+            // screen, so a cold launch works too.
+            .onOpenURL { url in
+                AppRouter.shared.handle(url)
+            }
     }
 
     @ViewBuilder

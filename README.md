@@ -150,6 +150,13 @@ keep everything on one device, with an option to delete the copy already in iClo
   `SiteRecencyModel`, and the `SVGAreaPath` parser behind the body-map areas.
 - `InsulinPumpSiteJournal/Views/` — history home, the new-placement flow (suggestions → confirm
   → Loop hand-off), the body-map heatmap, settings, and the body silhouettes.
+- `InsulinPumpSiteJournal/AppIntents/` — the Siri intents (`AskSiteAgeIntent`,
+  `StartPlacementIntent`) and the `AppShortcutsProvider` that gives them phrases.
+- `Shared/` — compiled into both the app and the widget: the App Group, the `SiteSnapshot` the
+  app publishes and the widget reads, the `WearDuration` arithmetic both use, and the
+  `rotate://` deep link one composes and the other resolves.
+- `RotateWidget/` — the lock-screen/home-screen widget extension. It reads the snapshot, not the
+  SwiftData store, so it needs neither the store URL nor CloudKit.
 - `InsulinPumpSiteJournal/Design/AppTheme.swift` — the palette, tier colors, and shared metrics.
 - `assets-src/`, `scripts/` — the SVG mounting-area sources and the tools that render them and
   the app icon.

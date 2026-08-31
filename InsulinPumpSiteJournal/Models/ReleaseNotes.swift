@@ -40,6 +40,11 @@ struct ReleaseNotes: Identifiable {
                     text: "Sync stays on by default, but you can now keep the journal on this device only — and remove the copy already in your iCloud. Settings → iCloud sync."
                 ),
                 Point(
+                    icon: "mic.fill",
+                    title: "Siri and a lock-screen widget",
+                    text: "Ask Siri how long your site has been on, or start the next one hands-free. Add the Rotate widget to your lock screen for the hour count at a glance — tap it to start a new site."
+                ),
+                Point(
                     icon: "hand.raised.fill",
                     title: "Clearer about your data",
                     text: "The privacy wording now says plainly that Apple stores the synced copy while sync is on, and the app hides your journal in the app switcher."

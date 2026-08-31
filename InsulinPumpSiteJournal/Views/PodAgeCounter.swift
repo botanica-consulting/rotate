@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// Technical readout of how long the current Pod has been on: "27h".
-/// Self-contained so a future widget can reuse the same formatting —
-/// widgets build timeline entries instead of TimelineView, so the text
-/// helpers are static and date-driven.
+/// The formatting itself is `WearDuration`, shared with the widget — widgets
+/// build timeline entries instead of using TimelineView, so the text helpers
+/// have to be static and date-driven.
 struct PodAgeCounter: View {
     let placedAt: Date
     /// Track tint for the readout; defaults to the pump's glucose blue.
@@ -19,17 +19,15 @@ struct PodAgeCounter: View {
         }
     }
 
-    /// Whole hours since placement: "0h" through "72h" and beyond.
+    /// Whole hours since placement: "0h" through "72h" and beyond. The
+    /// arithmetic lives in `WearDuration`, shared with the widget extension so
+    /// the two can never round differently.
     static func text(at now: Date, since placedAt: Date) -> String {
-        "\(hours(at: now, since: placedAt))h"
+        WearDuration.text(at: now, since: placedAt)
     }
 
     static func spokenText(at now: Date, since placedAt: Date) -> String {
-        "\(hours(at: now, since: placedAt)) hours"
-    }
-
-    private static func hours(at now: Date, since placedAt: Date) -> Int {
-        max(0, Int(now.timeIntervalSince(placedAt) / 3600))
+        WearDuration.spokenText(at: now, since: placedAt)
     }
 }
 
