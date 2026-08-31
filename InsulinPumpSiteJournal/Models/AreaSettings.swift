@@ -24,7 +24,12 @@ enum AreaSettings {
     }
 
     /// Encodes in a stable catalog order so the persisted string doesn't churn.
+    ///
+    /// The order spans the built-in catalog *and* the user's own sites: filtering
+    /// against `PumpSite.catalog` alone would silently drop a custom site's
+    /// exclusion on the next write.
     static func encode(_ ids: Set<String>) -> String {
-        PumpSite.catalog.map(\.id).filter(ids.contains).joined(separator: ",")
+        let order = PumpSite.catalog.map(\.id) + CustomSiteStore.allSiteIDs()
+        return order.filter(ids.contains).joined(separator: ",")
     }
 }

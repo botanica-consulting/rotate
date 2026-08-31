@@ -371,7 +371,7 @@ struct WizardDisclaimerView: View {
                     point(
                         icon: "lock.fill",
                         title: "Your data stays yours",
-                        text: "Rotate collects nothing about you. Your journal lives on this device and your own private iCloud — it is never sent to us or to any server."
+                        text: "Your journal never reaches a Botanica server — we can't see it, and there is no account, no analytics and no tracking. With iCloud sync on, Apple keeps a private copy in your own iCloud so it reaches your other devices; you can turn that off in Settings and keep everything on this device."
                     )
                     point(
                         icon: "heart.fill",
@@ -401,20 +401,9 @@ struct WizardDisclaimerView: View {
         .navigationBarBackButtonHidden(false)
     }
 
+    /// Shared with the What's New sheet — see `FeaturePoint`.
     private func point(icon: String, title: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 16) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(AppTheme.accent)
-                .frame(width: 34)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title)
-                    .font(.headline)
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        }
+        FeaturePoint(icon: icon, title: title, text: text)
     }
 }
 
@@ -435,7 +424,7 @@ struct WizardConfigView: View {
                 } header: {
                     Text("Your tracks")
                 } footer: {
-                    Text("Rotate is already set up with sensible defaults — every body area on, and a companion app ready to open after each placement. Start now to keep them, or tap a track to adjust which areas it rotates through and which app it opens. Everything is editable later in Settings.")
+                    Text("Rotate is already set up with sensible defaults — every body area on, and a companion app ready to open after each placement. Start now to keep them, or tap a track to adjust which areas it rotates through and which app it opens. Everything is editable later in Settings — including adding your own sites, for spots the figure doesn't cover.")
                 }
             }
             .scrollContentBackground(.hidden)

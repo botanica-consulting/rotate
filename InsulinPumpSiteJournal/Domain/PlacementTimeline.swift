@@ -103,3 +103,76 @@ struct PlacementTimeline {
         a == b ? aID.uuidString > bID.uuidString : a > b
     }
 }
+
+// MARK: - Editing a record's times
+
+extension PlacementTimeline {
+    /// What a single record's "on" and "off" times are allowed to be, derived
+    /// from its neighbours in the same track.
+    ///
+    /// Editing times after the fact must not reorder history: a placement can
+    /// slide anywhere between the placements either side of it, but never past
+    /// them. One type owns those limits so the pickers that offer the range and
+    /// the store that validates the write can't drift apart.
+    struct TimingBounds {
+        /// The record's stored start, used as the reference point when there is
+        /// no older placement to bound against.
+        let currentPlacedAt: Date
+        /// Start of the older placement in this track, if any.
+        let previousPlacedAt: Date?
+        /// Start of the newer placement in this track, if any.
+        let nextPlacedAt: Date?
+        /// Captured once so the pickers and the validator agree on "now".
+        let now: Date
+
+        /// Placements keep a minute of daylight between them: the pickers work
+        /// in minutes, so touching timestamps would let two records land on the
+        /// same instant and leave the ordering to the UUID tie-break.
+        static let gap: TimeInterval = 60
+        /// How far back an unbounded start may reach — a decade is past any
+        /// plausible journal without handing the wheel `Date.distantPast`.
+        private static let floor: TimeInterval = 10 * 365 * 24 * 3600
+
+        /// When the placement may have started.
+        var placedAtRange: ClosedRange<Date> {
+            let lower = previousPlacedAt?.addingTimeInterval(Self.gap)
+                ?? currentPlacedAt.addingTimeInterval(-Self.floor)
+            // No newer placement means this is the current one: it can't have
+            // started in the future.
+            let upper = nextPlacedAt?.addingTimeInterval(-Self.gap)
+                ?? max(now, currentPlacedAt)
+            return lower...max(lower, upper)
+        }
+
+        /// When the placement may have stopped, given the start on screen — so
+        /// the stop wheel tracks the start as the user drags it.
+        ///
+        /// A stop may land exactly on the next placement's start: that is what
+        /// `JournalStore.startPlacement` stamps when it closes the previous
+        /// record, so the boundary has to stay reachable.
+        func removedAtRange(placedAt: Date) -> ClosedRange<Date> {
+            let upper = nextPlacedAt ?? max(now, placedAt)
+            return placedAt...max(placedAt, upper)
+        }
+    }
+
+    /// Bounds for one record. A record this timeline doesn't hold (a track
+    /// mismatch, or one just deleted) falls back to "anything up to now".
+    func timingBounds(for record: PlacementRecord, now: Date = .now) -> TimingBounds {
+        guard let index = entries.firstIndex(where: { $0.record.id == record.id }) else {
+            return TimingBounds(
+                currentPlacedAt: record.placedAt,
+                previousPlacedAt: nil,
+                nextPlacedAt: nil,
+                now: now
+            )
+        }
+        // `entries` is newest-first, so the newer neighbour is the lower index.
+        return TimingBounds(
+            currentPlacedAt: record.placedAt,
+            previousPlacedAt: entries.indices.contains(index + 1) ? entries[index + 1].placedAt : nil,
+            nextPlacedAt: index > 0 ? entries[index - 1].placedAt : nil,
+            now: now
+        )
+    }
+}

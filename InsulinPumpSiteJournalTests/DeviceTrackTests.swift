@@ -25,8 +25,10 @@ struct DeviceTrackTests {
     }
 
     @Test func cgmSitesSpanEveryRegion() {
-        let regions = Set(PumpSite.sites(for: .cgm).map(\.region))
-        #expect(regions == Set(PumpSite.Region.allCases))
+        // Every region that exists on the figure. `.custom` holds the user's own
+        // sites, which no default install has.
+        let regions = Set(PumpSite.catalog.map(\.region))
+        #expect(regions == Set(PumpSite.Region.anatomical))
     }
 
     @Test func perDeviceTimelinesHaveIndependentCurrent() {

@@ -9,6 +9,12 @@ struct HistoryHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \PlacementRecord.placedAt, order: .reverse)
     private var records: [PlacementRecord]
+    /// Observed only to keep `CustomSiteStore`'s mirror current. The site
+    /// catalog is read from static entry points with no model context, so the
+    /// live query is refreshed into UserDefaults here — which also catches a
+    /// custom site arriving from another device through CloudKit.
+    @Query(sort: \CustomSite.createdAt, order: .forward)
+    private var customSites: [CustomSite]
 
     /// Non-nil while the new-placement flow is open, carrying which track to
     /// record.
@@ -29,6 +35,12 @@ struct HistoryHomeView: View {
     /// worn pump and sensor read as still on (not one closing the other).
     private var historyEntries: [PlacementTimeline.Entry] {
         PlacementTimeline.combinedEntries(records: records)
+    }
+
+    /// Changes worth rewriting the mirror for — a site added, renamed,
+    /// archived, or restored.
+    private var customSiteMirrorKey: [String] {
+        customSites.map { "\($0.siteID)|\($0.name)|\($0.isArchived)" }
     }
 
     /// Per-track timelines driving the two current cards and the per-device
@@ -70,6 +82,9 @@ struct HistoryHomeView: View {
                     .accessibilityIdentifier("bodyMapButton")
                 }
             }
+            .onChange(of: customSiteMirrorKey, initial: true) { _, _ in
+                CustomSiteStore.refreshMirror(customSites)
+            }
             .fullScreenCover(item: $pendingNewDevice) { device in
                 NewPodFlowView(deviceType: device)
             }
@@ -83,6 +98,10 @@ struct HistoryHomeView: View {
                 PodRecordDetailView(
                     record: record,
                     stop: historyEntries.first { $0.id == record.id }?.stop,
+                    // Bounds come from the record's own track, so a time edit
+                    // can only move within the gap around it.
+                    bounds: timeline(for: DeviceType(rawValue: record.deviceType) ?? .pump)
+                        .timingBounds(for: record),
                     onDelete: { pendingDelete = record }
                 )
             }

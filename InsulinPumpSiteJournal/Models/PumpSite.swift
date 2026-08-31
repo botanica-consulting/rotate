@@ -13,6 +13,10 @@ struct PumpSite: Identifiable, Hashable {
     let bodyView: BodyView
     let markerPosition: CGPoint
     let region: Region
+    /// A site the user added. It has no place on the figure, so it draws as a
+    /// free-floating area instead of a highlight on the body, and `bodyView` /
+    /// `markerPosition` carry no meaning for it.
+    var isCustom: Bool = false
 
     enum Region: String, CaseIterable, Identifiable {
         case abdomen
@@ -20,8 +24,15 @@ struct PumpSite: Identifiable, Hashable {
         case thigh
         case lowerBack
         case upperButtock
+        /// Holds every user-added site. Not a place on the body — it groups the
+        /// sites that have no place on it.
+        case custom
 
         var id: String { rawValue }
+
+        /// The regions that exist on the figure. Anything walking the built-in
+        /// catalog wants these, not `allCases`.
+        static let anatomical: [Region] = allCases.filter { $0 != .custom }
 
         /// Label for the region toggles in Settings. "Thighs" covers both the
         /// front and outer-thigh sites, which share this region.
@@ -32,6 +43,7 @@ struct PumpSite: Identifiable, Hashable {
             case .thigh: "Thighs"
             case .lowerBack: "Lower back"
             case .upperButtock: "Upper buttocks"
+            case .custom: "Your own sites"
             }
         }
     }
@@ -193,8 +205,31 @@ extension PumpSite {
     /// records on an excluded site still render.
     static func sites(for device: DeviceType) -> [PumpSite] {
         let disabled = AreaSettings.disabledSites(for: device)
-        guard !disabled.isEmpty else { return catalog }
-        return catalog.filter { !disabled.contains($0.id) }
+        let all = catalog + CustomSiteStore.activeSites()
+        guard !disabled.isEmpty else { return all }
+        return all.filter { !disabled.contains($0.id) }
+    }
+
+    /// Every site a track could rotate through, exclusions ignored — the
+    /// denominator for the "N of M areas" summaries in Settings.
+    static func allSites() -> [PumpSite] {
+        catalog + CustomSiteStore.activeSites()
+    }
+
+    /// A user-added site, shaped like a catalog entry so every card, list, and
+    /// suggestion path treats it the same. `bodyView`/`markerPosition` are
+    /// placeholders: `isCustom` sends rendering down the floating-area path
+    /// before either is read.
+    static func custom(id: String, name: String) -> PumpSite {
+        PumpSite(
+            id: id,
+            title: name,
+            shortTitle: name,
+            bodyView: .rear,
+            markerPosition: CGPoint(x: 0.5, y: 0.5),
+            region: .custom,
+            isCustom: true
+        )
     }
 
     /// The empty-history starter IDs for a device track.
@@ -210,6 +245,8 @@ extension PumpSite {
     )
 
     static func site(for id: String) -> PumpSite? {
-        byID[SiteID.canonical(id)]
+        let canonical = SiteID.canonical(id)
+        // Archived custom sites still resolve, so a history row keeps its name.
+        return byID[canonical] ?? CustomSiteStore.site(for: canonical)
     }
 }

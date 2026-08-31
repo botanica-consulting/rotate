@@ -160,18 +160,15 @@ struct DeviceChip: View {
     }
 }
 
-/// Renders a `SiteArea` (path data in the silhouette's viewBox space) scaled
-/// into the given rect — which must be the silhouette image's fitted frame.
-struct SiteAreaShape: Shape {
-    let area: SiteArea
-
-    /// Parsed-path cache: area path data is static for the app's lifetime
-    /// and parsing is pure string work — do it once per area, not on every
-    /// render of every figure.
+/// Parsed-path cache: area path data is static for the app's lifetime and
+/// parsing is pure string work — do it once per area, not on every render of
+/// every figure. Shared by both area shapes.
+enum SiteAreaPathCache {
     private nonisolated static let parsedPaths = Mutex<[String: Path]>([:])
 
-    func path(in rect: CGRect) -> Path {
-        let base = Self.parsedPaths.withLock { cache in
+    // Called from Shape.path(in:), which is nonisolated.
+    nonisolated static func path(for area: SiteArea) -> Path {
+        parsedPaths.withLock { cache in
             if let hit = cache[area.pathData] {
                 return hit
             }
@@ -179,10 +176,48 @@ struct SiteAreaShape: Shape {
             cache[area.pathData] = parsed
             return parsed
         }
-        return base.applying(CGAffineTransform(
+    }
+}
+
+/// Renders a `SiteArea` (path data in the silhouette's viewBox space) scaled
+/// into the given rect — which must be the silhouette image's fitted frame.
+struct SiteAreaShape: Shape {
+    let area: SiteArea
+
+    func path(in rect: CGRect) -> Path {
+        SiteAreaPathCache.path(for: area).applying(CGAffineTransform(
             a: rect.width / area.viewBoxWidth, b: 0,
             c: 0, d: rect.height / area.viewBoxHeight,
             tx: rect.minX, ty: rect.minY
         ))
+    }
+}
+
+/// The same area path drawn on its own, with no body under it: the shape is
+/// lifted out of its place in the viewBox and re-fitted to the frame.
+///
+/// This is what a custom site looks like. A user-added site has no position on
+/// the figure, so instead of a highlight somewhere on a silhouette it gets the
+/// area shape floating by itself — recognisably the same visual language as
+/// every other site, without claiming a place on the body.
+struct FloatingAreaShape: Shape {
+    let area: SiteArea
+    /// Breathing room left around the shape, as a fraction of the frame, so the
+    /// hairline outline never sits flush against the edge.
+    var inset: CGFloat = 0.1
+
+    func path(in rect: CGRect) -> Path {
+        let base = SiteAreaPathCache.path(for: area)
+        let bounds = base.boundingRect
+        guard bounds.width > 0, bounds.height > 0 else { return Path() }
+
+        let target = rect.insetBy(dx: rect.width * inset, dy: rect.height * inset)
+        // Uniform scale: the blob keeps its own proportions whatever shape the
+        // frame is.
+        let scale = min(target.width / bounds.width, target.height / bounds.height)
+        let transform = CGAffineTransform(translationX: -bounds.midX, y: -bounds.midY)
+            .concatenating(CGAffineTransform(scaleX: scale, y: scale))
+            .concatenating(CGAffineTransform(translationX: target.midX, y: target.midY))
+        return base.applying(transform)
     }
 }

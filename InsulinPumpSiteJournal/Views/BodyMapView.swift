@@ -38,6 +38,8 @@ struct BodyMapView: View {
                         mapFigure(for: .rear, title: "Rear")
                     }
 
+                    customStrip
+
                     Text("Rotating sites gives each area time to recover.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -105,7 +107,9 @@ struct BodyMapView: View {
             BodySilhouette(bodyType: bodyType, bodyView: bodyView)
                 .overlay {
                     GeometryReader { geometry in
-                        ForEach(PumpSite.sites(for: selectedDevice).filter { $0.bodyView == bodyView }) { site in
+                        // Custom sites have no place on the figure — they get
+                        // their own strip below it.
+                        ForEach(PumpSite.sites(for: selectedDevice).filter { !$0.isCustom && $0.bodyView == bodyView }) { site in
                             if let area = SiteAreaCatalog.area(for: site.id, bodyType: bodyType) {
                                 areaOverlay(for: site, area: area, in: geometry)
                             } else {
@@ -122,6 +126,50 @@ struct BodyMapView: View {
                 .font(.caption.smallCaps())
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// The user's own sites, carrying the same recency heat as the figures but
+    /// laid out on their own — they have no position on the body to sit at.
+    /// Hidden entirely when there are none, so the map is unchanged for anyone
+    /// who hasn't added any.
+    @ViewBuilder
+    private var customStrip: some View {
+        let sites = PumpSite.sites(for: selectedDevice).filter(\.isCustom)
+        if !sites.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Your own sites")
+                    .font(.caption.smallCaps())
+                    .foregroundStyle(.secondary)
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
+                    spacing: 12
+                ) {
+                    ForEach(sites) { site in
+                        customCell(for: site)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func customCell(for site: PumpSite) -> some View {
+        let isCurrent = site.id == currentSiteID
+        return VStack(spacing: 4) {
+            CustomSiteThumbnail(
+                fill: AppTheme.color(for: recency.tier(for: site.id)),
+                badgeDevice: isCurrent ? selectedDevice : nil
+            )
+            .frame(height: 56)
+            Text(site.title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription(for: site, isCurrent: isCurrent))
     }
 
     /// The anatomical mounting area: recency-colored fill under the shared

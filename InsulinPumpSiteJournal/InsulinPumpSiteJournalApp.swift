@@ -17,9 +17,30 @@ struct AppRootView: View {
     /// First-launch flag — flipped when the setup wizard finishes, so the
     /// walkthrough shows once and never again.
     @AppStorage("hasCompletedSetup") private var hasCompletedSetup = false
+    /// Mirrors `SyncSettings`. Observed here because the CloudKit mirror is
+    /// decided when the container is built, so turning sync on or off has to
+    /// rebuild it.
+    @AppStorage(SyncSettings.storageKey) private var syncEnabled = true
+    @Environment(\.scenePhase) private var scenePhase
+    /// Newest version whose changes have been shown. Existing users never see
+    /// the wizard again, so this sheet is the only way a change in wording — or
+    /// a new privacy switch — reaches them.
+    @AppStorage(ReleaseNotes.lastSeenVersionKey) private var lastSeenVersion = ""
+    @State private var showingWhatsNew = false
     @State private var containerResult = AppRootView.makeContainer()
 
     var body: some View {
+        container
+            // Reuses the recovery path's rebuild: the store file is the same
+            // either way, so only the mirror changes.
+            .onChange(of: syncEnabled) { _, _ in
+                containerResult = Self.makeContainer()
+            }
+            .overlay { privacyShield }
+    }
+
+    @ViewBuilder
+    private var container: some View {
         switch containerResult {
         case .success(let container):
             rootContent
@@ -36,14 +57,64 @@ struct AppRootView: View {
         }
     }
 
+    /// iOS snapshots the interface for the app switcher, and a journal of body
+    /// sites, dates and notes is not something to leave sitting in that
+    /// snapshot. Cover the UI whenever the scene isn't active; it can flash
+    /// briefly as a system sheet takes focus, which is the accepted cost.
+    @ViewBuilder
+    private var privacyShield: some View {
+        if scenePhase != .active {
+            ZStack {
+                AppBackground()
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
+                    .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
+            }
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
+            .transition(.opacity)
+        }
+    }
+
     /// The journal, or the one-time setup wizard on first launch.
     @ViewBuilder
     private var rootContent: some View {
         if shouldShowOnboarding {
-            SetupWizardView(onFinish: { hasCompletedSetup = true })
+            SetupWizardView(onFinish: {
+                // A new install just read the current wording in the wizard, so
+                // it starts up to date and never gets the What's New sheet too.
+                lastSeenVersion = Self.currentVersion
+                hasCompletedSetup = true
+            })
         } else {
             HistoryHomeView()
+                .sheet(isPresented: $showingWhatsNew) {
+                    WhatsNewView(notes: pendingReleaseNotes) {
+                        lastSeenVersion = Self.currentVersion
+                        showingWhatsNew = false
+                    }
+                }
+                .task {
+                    showingWhatsNew = !pendingReleaseNotes.isEmpty
+                }
         }
+    }
+
+    /// Changes this user hasn't been shown yet. Empty on a test launch, so the
+    /// sheet never lands on top of the UI tests; `--uitest-whatsnew` forces it
+    /// for its own visual QA.
+    private var pendingReleaseNotes: [ReleaseNotes] {
+        guard !isTestLaunch || CommandLine.arguments.contains("--uitest-whatsnew") else {
+            return []
+        }
+        return ReleaseNotes.unseen(lastSeen: lastSeenVersion, current: Self.currentVersion)
+    }
+
+    private static var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
     }
 
     /// Whether to present the setup wizard. Test launches go straight to the
@@ -51,11 +122,15 @@ struct AppRootView: View {
     /// forces the wizard for its own visual QA.
     private var shouldShowOnboarding: Bool {
         if CommandLine.arguments.contains("--uitest-onboarding") { return true }
-        if CommandLine.arguments.contains("--uitest-reset")
-            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-            return false
-        }
+        if isTestLaunch { return false }
         return !hasCompletedSetup
+    }
+
+    /// A UI-test or unit-test host launch: straight to the journal, with nothing
+    /// presented over it.
+    private var isTestLaunch: Bool {
+        CommandLine.arguments.contains("--uitest-reset")
+            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     private static func makeContainer() -> Result<ModelContainer, Error> {
@@ -69,7 +144,7 @@ struct AppRootView: View {
             return Result {
                 let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
                 let container = try ModelContainer(
-                    for: PlacementRecord.self,
+                    for: PlacementRecord.self, CustomSite.self,
                     configurations: configuration
                 )
                 if CommandLine.arguments.contains("--uitest-seed") {
@@ -109,7 +184,10 @@ struct AppRootView: View {
         // store still opens and works locally, and mirroring resumes when
         // an account appears.
         return Result {
-            try ModelContainer(for: PlacementRecord.self, configurations: storeConfiguration())
+            try ModelContainer(
+                for: PlacementRecord.self, CustomSite.self,
+                configurations: storeConfiguration()
+            )
         }
     }
 
@@ -124,8 +202,16 @@ struct AppRootView: View {
     /// that needs the new fields. TestFlight and App Store builds use
     /// Production, where a missing field fails silently — no error, sync just
     /// stops working. See issue #3.
+    ///
+    /// Sync can be turned off (Settings → iCloud sync). Both branches are built
+    /// without an explicit `url:`, so they resolve to the same default store
+    /// file and flipping the switch keeps the journal exactly where it was —
+    /// `storeURLIsTheSameWithOrWithoutSync` in SyncSettingsTests guards that.
     private static func storeConfiguration() -> ModelConfiguration {
-        ModelConfiguration(cloudKitDatabase: .private("iCloud.consulting.botanica.rotate"))
+        guard SyncSettings.isEnabled else {
+            return ModelConfiguration(cloudKitDatabase: .none)
+        }
+        return ModelConfiguration(cloudKitDatabase: .private(SyncSettings.cloudKitContainerID))
     }
 
     /// Last-resort recovery: remove the store files (and SQLite sidecars) so
