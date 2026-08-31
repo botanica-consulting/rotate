@@ -8,8 +8,13 @@ import WidgetKit
 /// change merged in from another device through CloudKit.
 @MainActor
 enum SnapshotPublisher {
-    /// `defaults` is injectable so tests don't write to the real shared suite.
-    static func refresh(from records: [PlacementRecord], to defaults: UserDefaults = AppGroup.defaults) {
+    /// `defaults` and `resolveTitle` are injectable so tests don't have to write
+    /// to the real shared suite or the app-wide custom-site mirror.
+    static func refresh(
+        from records: [PlacementRecord],
+        to defaults: UserDefaults = AppGroup.defaults,
+        resolveTitle: (String) -> String = { PumpSite.site(for: $0)?.title ?? $0 }
+    ) {
         var snapshot = SiteSnapshot()
         for device in DeviceType.allCases {
             guard let current = PlacementTimeline(records: records, deviceType: device).current else {
@@ -18,9 +23,10 @@ enum SnapshotPublisher {
             snapshot.setTrack(
                 SiteSnapshot.Track(
                     placedAt: current.placedAt,
-                    // Resolves custom sites too, so the widget shows a name
-                    // rather than a raw ID.
-                    siteTitle: PumpSite.site(for: current.siteID)?.title ?? current.siteID
+                    // Resolved here, in the app, so the widget is never handed a
+                    // raw ID — including for custom sites, whose names only the
+                    // app can look up.
+                    siteTitle: resolveTitle(current.siteID)
                 ),
                 for: device
             )

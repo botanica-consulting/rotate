@@ -5,6 +5,10 @@ import SwiftData
 @main
 struct InsulinPumpSiteJournalApp: App {
     init() {
+        #if DEBUG
+        // Before anything reads a preference.
+        TestLaunchState.resetIfRequested()
+        #endif
         // Registered here, not in a view: an intent can run before any view
         // exists (Siri on a cold launch), and StartPlacementIntent resolves the
         // router through @Dependency.

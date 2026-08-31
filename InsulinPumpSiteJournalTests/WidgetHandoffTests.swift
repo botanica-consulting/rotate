@@ -85,11 +85,15 @@ struct WidgetHandoffTests {
         CustomSiteStore.refreshMirror(try journal.customSites(includingArchived: true), defaults: mirror)
         try journal.startPlacement(siteID: calf.siteID, deviceType: .pump)
 
-        // PumpSite.site(for:) reads the real mirror, so seed that too — the point
-        // is that the widget must never be handed a raw "custom-<uuid>".
-        CustomSiteStore.refreshMirror(try journal.customSites(includingArchived: true))
-        defer { CustomSiteStore.write([]) }
-        SnapshotPublisher.refresh(from: try journal.history(), to: store)
+        // The widget must never be handed a raw "custom-<uuid>": the name is
+        // resolved app-side, before publishing. Resolution is injected here
+        // against an isolated mirror rather than the app-wide one, which other
+        // suites read concurrently.
+        SnapshotPublisher.refresh(
+            from: try journal.history(),
+            to: store,
+            resolveTitle: { CustomSiteStore.site(for: $0, defaults: mirror)?.title ?? $0 }
+        )
 
         #expect(SiteSnapshot.load(from: store).pump?.siteTitle == "Left calf")
     }
