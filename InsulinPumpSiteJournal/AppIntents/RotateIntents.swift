@@ -52,13 +52,21 @@ struct StartPlacementIntent: AppIntent {
 }
 
 /// The phrases Siri recognises without the user building a shortcut first.
+///
+/// The track is interpolated into the phrase rather than left to the parameter's
+/// default: with `\(.applicationName)` alone, "how long has my sensor been on"
+/// still resolved to the pump, silently, because `device` defaults to `.pump`
+/// and nothing in the phrase could override it. The sensor is half the app, so
+/// it needs to be sayable. Each intent keeps one un-parameterised shorthand,
+/// which is the only phrase the pump default still answers.
 struct RotateShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: AskSiteAgeIntent(),
             phrases: [
-                "How long has my site been on in \(.applicationName)",
-                "Check my site age in \(.applicationName)",
+                "How long has my \(\.$device) been on in \(.applicationName)",
+                "How long has my \(\.$device) site been on in \(.applicationName)",
+                "Check my \(\.$device) site age in \(.applicationName)",
                 "\(.applicationName) site age",
             ],
             shortTitle: "Check site age",
@@ -67,9 +75,10 @@ struct RotateShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: StartPlacementIntent(),
             phrases: [
+                "Start a new \(\.$device) site in \(.applicationName)",
+                "Log a new \(\.$device) site in \(.applicationName)",
+                "New \(\.$device) site in \(.applicationName)",
                 "Start a new site in \(.applicationName)",
-                "Log a new site in \(.applicationName)",
-                "New site in \(.applicationName)",
             ],
             shortTitle: "Start a new site",
             systemImageName: "plus.circle"

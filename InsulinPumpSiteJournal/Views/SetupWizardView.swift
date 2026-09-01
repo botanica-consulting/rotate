@@ -374,8 +374,8 @@ private struct ShortcutsHeroView: View {
             lockScreenMock
 
             VStack(alignment: .leading, spacing: 10) {
-                phrase("How long has my site been on in Rotate?")
-                phrase("Start a new site in Rotate.")
+                phrase("How long has my pump been on in Rotate?")
+                phrase("Start a new sensor site in Rotate.")
             }
 
             ShortcutsLink()
