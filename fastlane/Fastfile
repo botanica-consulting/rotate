@@ -131,17 +131,29 @@ platform :ios do
 
     # One profile per signed target. The widget extension is embedded in the app
     # but signed in its own right, so gym needs both mappings.
+    #
+    # sigh reuses any unexpired profile it finds on the portal and never checks
+    # its entitlements, so a profile minted before a capability was added stays
+    # stale until something forces a new one. That bit us for 1.1.1: the 1.1.0
+    # App Store profile is valid until 2027 but predates App Groups, and signing
+    # against it fails with "doesn't include the com.apple.security
+    # .application-groups entitlement". After changing capabilities on a bundle
+    # id, run the lane once as `FORCE_PROFILES=1 fastlane beta`.
+    force_profiles = ENV["FORCE_PROFILES"] == "1"
+
     get_provisioning_profile(
       api_key: api_key,
       app_identifier: LOCAL_BUNDLE_ID,
-      team_id: ENV["TEAMID"]
+      team_id: ENV["TEAMID"],
+      force: force_profiles
     )
     app_profile = lane_context[SharedValues::SIGH_NAME]
 
     get_provisioning_profile(
       api_key: api_key,
       app_identifier: LOCAL_WIDGET_BUNDLE_ID,
-      team_id: ENV["TEAMID"]
+      team_id: ENV["TEAMID"],
+      force: force_profiles
     )
     widget_profile = lane_context[SharedValues::SIGH_NAME]
 
@@ -243,5 +255,21 @@ platform :ios do
         export_compliance_uses_encryption: false
       }
     )
+  end
+
+  desc "Read-only: report enabled capabilities for both bundle ids"
+  lane :audit_ids do
+    app_store_connect_api_key(
+      key_id: ENV["FASTLANE_KEY_ID"],
+      issuer_id: ENV["FASTLANE_ISSUER_ID"],
+      key_filepath: File.expand_path(ENV["FASTLANE_KEY_PATH"])
+    )
+
+    [LOCAL_BUNDLE_ID, LOCAL_WIDGET_BUNDLE_ID].each do |identifier|
+      record = Spaceship::ConnectAPI::BundleId.find(identifier)
+      UI.user_error!("#{identifier} is not registered") unless record
+      UI.header(identifier)
+      record.get_capabilities.each { |cap| UI.message("  #{cap.capability_type}") }
+    end
   end
 end
