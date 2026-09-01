@@ -10,7 +10,7 @@ enum TestLaunchState {
         guard CommandLine.arguments.contains("--uitest-reset") else { return }
         UserDefaults.standard.removeObject(forKey: SyncSettings.storageKey)
         // Derived from the store, which is empty on this launch.
-        CustomSiteStore.write([])
+        CustomSiteStore.refreshMirror([])
     }
 }
 #endif

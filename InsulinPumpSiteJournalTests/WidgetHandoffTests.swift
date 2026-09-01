@@ -81,7 +81,7 @@ struct WidgetHandoffTests {
         let mirror = defaults()
         let context = try context()
         let journal = JournalStore(context: context)
-        let calf = try journal.addCustomSite(name: "Left calf")
+        let calf = try journal.addCustomSite(name: "Left calf", for: .pump)
         CustomSiteStore.refreshMirror(try journal.customSites(includingArchived: true), defaults: mirror)
         try journal.startPlacement(siteID: calf.siteID, deviceType: .pump)
 

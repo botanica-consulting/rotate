@@ -45,8 +45,12 @@ final class NewFeaturesUITests: XCTestCase {
         app.launchArguments = ["--uitest-reset"]
         app.launch()
 
+        // Custom sites live on each track's own page now, not the Settings root.
         app.buttons["settingsButton"].tap()
-        let customSitesLink = app.descendants(matching: .any)["customSitesLink"]
+        let pumpLink = app.descendants(matching: .any)["pumpSettingsLink"]
+        XCTAssertTrue(pumpLink.waitForExistence(timeout: 5))
+        pumpLink.tap()
+        let customSitesLink = app.descendants(matching: .any)["pumpCustomSitesLink"]
         XCTAssertTrue(customSitesLink.waitForExistence(timeout: 5))
         customSitesLink.tap()
 
@@ -63,6 +67,7 @@ final class NewFeaturesUITests: XCTestCase {
 
         // Back out of Settings and confirm it reached the site catalog — the
         // UserDefaults mirror is what makes that work.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
         app.navigationBars.buttons.element(boundBy: 0).tap()
         app.buttons["closeSettingsButton"].tap()
 
