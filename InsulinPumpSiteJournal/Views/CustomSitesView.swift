@@ -1,15 +1,23 @@
 import SwiftUI
 import SwiftData
 
-/// Manage the sites you added yourself, for spots the body figure doesn't
-/// cover. Each one behaves like a catalog site everywhere else in the app —
-/// it can be suggested, it collects recency heat, and it can be excluded from
-/// either track — it just draws as a floating area instead of a place on the
-/// silhouette.
+/// Manage one track's own sites, for spots the body figure doesn't cover.
+/// Each behaves like a catalog site everywhere else — suggested, recency-
+/// tracked, includable — it just draws as a floating area rather than a place
+/// on the silhouette.
+///
+/// Scoped to a track: reached from the Pump or Sensor screen, and only that
+/// track's sites are listed or created here.
 struct CustomSitesView: View {
+    let device: DeviceType
+
     @Environment(\.modelContext) private var modelContext
+    /// Filtered in memory rather than by predicate — `device` is derived from
+    /// the stored raw string, and these lists are a handful of rows.
     @Query(sort: \CustomSite.createdAt, order: .forward)
-    private var sites: [CustomSite]
+    private var allSites: [CustomSite]
+
+    private var sites: [CustomSite] { allSites.filter { $0.device == device } }
 
     @State private var newName = ""
     @State private var renaming: CustomSite?
@@ -36,7 +44,7 @@ struct CustomSitesView: View {
                         .accessibilityIdentifier("addCustomSiteButton")
                 }
             } footer: {
-                Text("Name it however you'd recognise it — \"left calf\", \"right hip\". Custom sites have no drawing on the figure, so they show as a plain area instead.")
+                Text("Custom sites appear as plain area markers on the map.")
             }
 
             if !active.isEmpty {
@@ -63,7 +71,7 @@ struct CustomSitesView: View {
                 } header: {
                     Text("Removed")
                 } footer: {
-                    Text("Removed sites aren't offered for new placements, but they're kept so past entries still show their name.")
+                    Text("Not offered for new placements. Past entries keep the name.")
                 }
             }
         }
@@ -126,7 +134,7 @@ struct CustomSitesView: View {
     private func add() {
         guard !trimmedNewName.isEmpty else { return }
         perform {
-            try JournalStore(context: modelContext).addCustomSite(name: trimmedNewName)
+            try JournalStore(context: modelContext).addCustomSite(name: trimmedNewName, for: device)
             newName = ""
         }
     }
@@ -142,7 +150,7 @@ struct CustomSitesView: View {
 
 #Preview("Custom sites") {
     NavigationStack {
-        CustomSitesView()
+        CustomSitesView(device: .pump)
     }
     .modelContainer(for: CustomSite.self, inMemory: true)
 }

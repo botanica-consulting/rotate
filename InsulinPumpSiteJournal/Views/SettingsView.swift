@@ -24,7 +24,6 @@ struct SettingsView: View {
             Form {
                 silhouetteSection
                 devicesSection
-                customSitesSection
                 syncSection
                 resetSection
                 footerSection
@@ -47,7 +46,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("turnOffSyncAndPurgeButton")
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Off keeps this journal on this device only. Records already synced stay in your private iCloud unless you remove them — removing needs a network connection and isn't instant.")
+                Text("Records already in iCloud stay there unless you remove them. Removing isn't instant.")
             }
             .alert(
                 "Delete all placement records?",
@@ -64,7 +63,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("confirmResetButton")
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This removes your placement history here and, through iCloud, from your other devices. Reaching your other devices needs a network connection and isn't instant. It can't be undone. Type RESET to confirm.")
+                Text("Deletes your history here and from iCloud. Can't be undone. Type RESET to confirm.")
             }
             .onChange(of: confirmingReset) { _, isPresented in
                 if !isPresented { resetConfirmationText = "" }
@@ -116,7 +115,7 @@ struct SettingsView: View {
         } header: {
             Text("Silhouette")
         } footer: {
-            Text("The figure shown on the body map and site previews.")
+            Text("Used on the body map and site previews.")
         }
     }
 
@@ -128,7 +127,7 @@ struct SettingsView: View {
             deviceLink(for: .pump)
             deviceLink(for: .cgm)
         } footer: {
-            Text("Companion app and areas for each track.")
+            Text("Companion app, areas and custom sites for each track.")
         }
     }
 
@@ -139,28 +138,6 @@ struct SettingsView: View {
             Text(device.displayName)
         }
         .accessibilityIdentifier(device == .pump ? "pumpSettingsLink" : "sensorSettingsLink")
-    }
-
-    /// Sites the user added for spots the figure doesn't cover. Its own section
-    /// rather than a per-track one: a custom site belongs to the body, and each
-    /// track then includes or excludes it like any other area.
-    @ViewBuilder
-    private var customSitesSection: some View {
-        Section {
-            NavigationLink {
-                CustomSitesView()
-            } label: {
-                HStack {
-                    Text("Custom sites")
-                    Spacer()
-                    Text(customSiteSummary)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .accessibilityIdentifier("customSitesLink")
-        } footer: {
-            Text("Add your own sites for spots the figure doesn't cover. They have no drawing on the body, so they show as a plain area.")
-        }
     }
 
     /// The privacy switch. Sync is on by default — it is what makes the journal
@@ -224,10 +201,9 @@ struct SettingsView: View {
     }
 
     private var syncFooter: String {
-        if syncEnabled {
-            return "Your journal is kept on this device and mirrored to your own private iCloud, so it reaches your other devices and survives a lost phone. Apple stores that copy; Botanica never receives it. Turn this off to keep the journal on this device only."
-        }
-        return "This journal stays on this device. Nothing new is sent to iCloud. Turning sync back on will upload the journal again."
+        syncEnabled
+            ? "Stored in your private iCloud, where only you can reach it. Turn this off to keep the journal on this device."
+            : "Kept on this device only. Turning sync back on uploads the journal again."
     }
 
     @ViewBuilder
@@ -238,7 +214,7 @@ struct SettingsView: View {
             }
             .accessibilityIdentifier("resetJournalButton")
         } footer: {
-            Text("Deletes every placement record — pump and sensor — here, and from iCloud on your other devices once they sync. Settings and your custom sites are kept.")
+            Text("Deletes every placement, both tracks. Settings and custom sites are kept.")
         }
     }
 
@@ -250,7 +226,7 @@ struct SettingsView: View {
         Section {
         } footer: {
             VStack(spacing: 14) {
-                Text("Your journal never reaches a Botanica server. With iCloud sync on, Apple keeps a private copy in your own iCloud.")
+                Text("No account, no analytics. Your journal is yours.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -266,11 +242,6 @@ struct SettingsView: View {
 
     private var selectedBodyType: BodyType {
         BodyType(rawValue: bodyTypeRaw) ?? .neutral
-    }
-
-    private var customSiteSummary: String {
-        let count = CustomSiteStore.activeSites().count
-        return count == 0 ? "None" : "\(count)"
     }
 
     /// Marketing version (CFBundleShortVersionString), e.g. "1.0.3".
@@ -325,7 +296,7 @@ struct DeviceSettingsView: View {
                 }
                 .accessibilityIdentifier(device == .pump ? "pumpCompanionPicker" : "sensorCompanionPicker")
             } footer: {
-                Text("Confirming a \(device.noun) placement opens its companion app to activate and pair — choose None to stay in Rotate.")
+                Text("Opened after each placement. Choose None to stay in Rotate.")
             }
 
             Section {
@@ -342,19 +313,40 @@ struct DeviceSettingsView: View {
                 .accessibilityIdentifier(device == .pump ? "pumpRegionsLink" : "sensorRegionsLink")
                 .accessibilityLabel("Areas, \(enabledAreaCount) of \(areaTotal) on")
             } footer: {
-                Text("Choose which body areas can be suggested and shown on the body map for your \(device.noun).")
+                Text("Which areas this track rotates through.")
+            }
+
+            Section {
+                NavigationLink {
+                    CustomSitesView(device: device)
+                } label: {
+                    HStack {
+                        Text("Custom sites")
+                        Spacer()
+                        Text(customSiteSummary)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityIdentifier(device == .pump ? "pumpCustomSitesLink" : "sensorCustomSitesLink")
+            } footer: {
+                Text("Custom sites appear as plain area markers on the map.")
             }
         }
         .navigationTitle(device.displayName)
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Counted against every site a track could use — the built-in catalog plus
-    /// the user's own — so adding a custom site moves these numbers too.
-    private var areaTotal: Int { PumpSite.allSites().count }
+    private var customSiteSummary: String {
+        let count = CustomSiteStore.activeSites(for: device).count
+        return count == 0 ? "None" : "\(count)"
+    }
+
+    /// Counted against every site this track could use — the built-in catalog
+    /// plus its own custom sites — so adding one moves these numbers too.
+    private var areaTotal: Int { PumpSite.allSites(for: device).count }
 
     private var enabledAreaCount: Int {
-        let known = Set(PumpSite.allSites().map(\.id))
+        let known = Set(PumpSite.allSites(for: device).map(\.id))
         // Only count exclusions that still match a live site: an archived custom
         // site's leftover exclusion must not make the tally go negative.
         return areaTotal - AreaSettings.parse(disabledRaw).filter(known.contains).count
@@ -384,7 +376,7 @@ struct SilhouettePickerView: View {
                     .accessibilityIdentifier("silhouetteOption-\(type.rawValue)")
                 }
             } footer: {
-                Text("The same figure is used on the body map and every site preview.")
+                Text("Used on the body map and every site preview.")
             }
         }
         .navigationTitle("Silhouette")
@@ -443,7 +435,7 @@ struct AreaSettingsView: View {
         let disabled = AreaSettings.parse(disabledRaw)
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Tap an area to include or exclude it for your \(device.noun). Excluded areas grey out and won't be suggested or shown on the body map for this track.")
+                Text("Tap to include or exclude. Excluded areas aren't suggested or mapped.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -453,7 +445,7 @@ struct AreaSettingsView: View {
                 ForEach(PumpSite.Region.allCases) { region in
                     // Custom sites land in the `.custom` region; the section is
                     // skipped below when the user has none.
-                    let sites = PumpSite.allSites().filter { $0.region == region }
+                    let sites = PumpSite.allSites(for: device).filter { $0.region == region }
                     if !sites.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(region.displayName)
@@ -490,7 +482,7 @@ struct AreaSettingsView: View {
         } else {
             // Keep at least one area enabled — a track with none has nothing
             // to rotate through.
-            guard disabled.count < PumpSite.allSites().count - 1 else { return }
+            guard disabled.count < PumpSite.allSites(for: device).count - 1 else { return }
             disabled.insert(id)
         }
         disabledRaw = AreaSettings.encode(disabled)

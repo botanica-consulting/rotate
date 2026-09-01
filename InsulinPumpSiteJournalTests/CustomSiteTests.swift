@@ -52,14 +52,14 @@ struct CustomSiteTests {
         let store = defaults()
         let context = try context()
         let journal = JournalStore(context: context)
-        try journal.addCustomSite(name: "Left calf")
-        try journal.addCustomSite(name: "Right hip")
+        try journal.addCustomSite(name: "Left calf", for: .pump)
+        try journal.addCustomSite(name: "Right hip", for: .pump)
 
         CustomSiteStore.refreshMirror(try journal.customSites(includingArchived: true), defaults: store)
 
-        let names = CustomSiteStore.activeSites(defaults: store).map(\.title)
+        let names = CustomSiteStore.activeSites(for: .pump, defaults: store).map(\.title)
         #expect(names == ["Left calf", "Right hip"])
-        for site in CustomSiteStore.activeSites(defaults: store) {
+        for site in CustomSiteStore.activeSites(for: .pump, defaults: store) {
             #expect(site.isCustom)
             #expect(site.region == .custom)
         }
@@ -69,33 +69,51 @@ struct CustomSiteTests {
         let store = defaults()
         let context = try context()
         let journal = JournalStore(context: context)
-        let calf = try journal.addCustomSite(name: "Left calf")
+        let calf = try journal.addCustomSite(name: "Left calf", for: .pump)
         try journal.setArchived(calf, true)
 
         CustomSiteStore.refreshMirror(try journal.customSites(includingArchived: true), defaults: store)
 
         // Gone from what a new placement can choose…
-        #expect(CustomSiteStore.activeSites(defaults: store).isEmpty)
+        #expect(CustomSiteStore.activeSites(for: .pump, defaults: store).isEmpty)
         // …but a placement already on it still resolves to the name, not a raw ID.
         #expect(CustomSiteStore.site(for: calf.siteID, defaults: store)?.title == "Left calf")
     }
 
     @Test func namesAreTrimmed() throws {
         let journal = JournalStore(context: try context())
-        let site = try journal.addCustomSite(name: "  Left calf \n")
+        let site = try journal.addCustomSite(name: "  Left calf \n", for: .pump)
         #expect(site.name == "Left calf")
     }
 
     @Test func renameAndRestore() throws {
         let journal = JournalStore(context: try context())
-        let site = try journal.addCustomSite(name: "Calf")
+        let site = try journal.addCustomSite(name: "Calf", for: .pump)
         try journal.rename(site, to: "Left calf")
         #expect(site.name == "Left calf")
 
         try journal.setArchived(site, true)
-        #expect(try journal.customSites().isEmpty)
+        #expect(try journal.customSites(for: .pump).isEmpty)
         try journal.setArchived(site, false)
-        #expect(try journal.customSites().map(\.name) == ["Left calf"])
+        #expect(try journal.customSites(for: .pump).map(\.name) == ["Left calf"])
+    }
+
+    @Test func sitesBelongToOneTrackOnly() throws {
+        let store = defaults()
+        let journal = JournalStore(context: try context())
+        try journal.addCustomSite(name: "Left calf", for: .pump)
+        let arm = try journal.addCustomSite(name: "Back of arm", for: .cgm)
+
+        CustomSiteStore.refreshMirror(try journal.customSites(includingArchived: true), defaults: store)
+
+        // A pump site is not offered to the sensor, or the other way round.
+        #expect(CustomSiteStore.activeSites(for: .pump, defaults: store).map(\.title) == ["Left calf"])
+        #expect(CustomSiteStore.activeSites(for: .cgm, defaults: store).map(\.title) == ["Back of arm"])
+        #expect(try journal.customSites(for: .cgm).map(\.name) == ["Back of arm"])
+
+        // But a placement resolves its name whichever track it came from — the
+        // history list mixes both.
+        #expect(CustomSiteStore.site(for: arm.siteID, defaults: store)?.title == "Back of arm")
     }
 
     // MARK: Area exclusions
@@ -104,7 +122,7 @@ struct CustomSiteTests {
         let store = defaults()
         let context = try context()
         let journal = JournalStore(context: context)
-        let calf = try journal.addCustomSite(name: "Left calf")
+        let calf = try journal.addCustomSite(name: "Left calf", for: .pump)
         CustomSiteStore.refreshMirror(try journal.customSites(includingArchived: true), defaults: store)
 
         // encode() used to filter against PumpSite.catalog alone, which silently
@@ -161,7 +179,7 @@ struct CustomSiteTests {
         let store = defaults()
         let context = try context()
         let journal = JournalStore(context: context)
-        let calf = try journal.addCustomSite(name: "Left calf")
+        let calf = try journal.addCustomSite(name: "Left calf", for: .pump)
         CustomSiteStore.refreshMirror(try journal.customSites(includingArchived: true), defaults: store)
 
         try journal.startPlacement(siteID: calf.siteID, deviceType: .pump)
@@ -180,10 +198,10 @@ struct CustomSiteTests {
         let store = defaults()
         let context = try context()
         let journal = JournalStore(context: context)
-        let calf = try journal.addCustomSite(name: "Left calf")
+        let calf = try journal.addCustomSite(name: "Left calf", for: .pump)
         CustomSiteStore.refreshMirror(try journal.customSites(includingArchived: true), defaults: store)
 
-        let candidates = PumpSite.catalog + CustomSiteStore.activeSites(defaults: store)
+        let candidates = PumpSite.catalog + CustomSiteStore.activeSites(for: .pump, defaults: store)
         let suggestions = SiteSuggestionEngine().suggestions(
             from: candidates,
             history: [],

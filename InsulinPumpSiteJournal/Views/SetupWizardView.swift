@@ -366,12 +366,12 @@ struct WizardDisclaimerView: View {
                     point(
                         icon: "book.closed.fill",
                         title: "A journal, not a medical device",
-                        text: "Rotate only helps you keep track of where you place your pump and sensor. It doesn't diagnose, treat, or make any dosing decisions — always follow your own clinical guidance."
+                        text: "Rotate tracks where you place your pump and sensor. It doesn't diagnose, treat, or make dosing decisions — follow your clinical guidance."
                     )
                     point(
                         icon: "lock.fill",
                         title: "Your data stays yours",
-                        text: "Your journal never reaches a Botanica server — we can't see it, and there is no account, no analytics and no tracking. With iCloud sync on, Apple keeps a private copy in your own iCloud so it reaches your other devices; you can turn that off in Settings and keep everything on this device."
+                        text: "No account, no analytics, no tracking. Your journal syncs to your private iCloud, where only you can reach it — or turn sync off in Settings and keep it on this device."
                     )
                     point(
                         icon: "heart.fill",

@@ -59,18 +59,24 @@ struct JournalStore {
 
     // MARK: - Custom sites
 
-    /// The user's own sites, oldest first — the order the mirror and every
-    /// site-ID list keeps.
-    func customSites(includingArchived: Bool = false) throws -> [CustomSite] {
+    /// One track's own sites, oldest first — the order the mirror and every
+    /// site-ID list keeps. Pass `device: nil` for both tracks, which is what
+    /// the mirror refresh wants.
+    func customSites(for device: DeviceType? = nil, includingArchived: Bool = false) throws -> [CustomSite] {
         let all = try context.fetch(FetchDescriptor<CustomSite>(
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         ))
-        return includingArchived ? all : all.filter { !$0.isArchived }
+        return all.filter { site in
+            (device == nil || site.device == device) && (includingArchived || !site.isArchived)
+        }
     }
 
     @discardableResult
-    func addCustomSite(name: String) throws -> CustomSite {
-        let site = CustomSite(name: name.trimmingCharacters(in: .whitespacesAndNewlines))
+    func addCustomSite(name: String, for device: DeviceType) throws -> CustomSite {
+        let site = CustomSite(
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            device: device
+        )
         context.insert(site)
         try saveOrRollback()
         return site
