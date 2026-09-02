@@ -104,8 +104,15 @@ struct SharedSnapshotTests {
         #expect(DeepLink.newPlacementDevice(from: try #require(URL(string: "rotate://settings"))) == nil)
     }
 
-    @Test func linkWithoutAKnownTrackFallsBackToPump() throws {
+    /// A link that doesn't name a track means "the usual one".
+    @Test func linkWithoutATrackFallsBackToPump() throws {
         #expect(DeepLink.newPlacementDevice(from: try #require(URL(string: "rotate://new"))) == .pump)
-        #expect(DeepLink.newPlacementDevice(from: try #require(URL(string: "rotate://new?device=banana"))) == .pump)
+    }
+
+    /// A link that names a track we don't know is malformed, not unspecified —
+    /// opening the pump flow for it would silently start the wrong placement.
+    @Test func linkWithAnUnknownTrackIsRejected() throws {
+        #expect(DeepLink.newPlacementDevice(from: try #require(URL(string: "rotate://new?device=banana"))) == nil)
+        #expect(DeepLink.newPlacementDevice(from: try #require(URL(string: "rotate://new?device="))) == nil)
     }
 }

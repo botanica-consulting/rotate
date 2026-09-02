@@ -13,9 +13,17 @@ import Foundation
 /// Order matters, and it is the reason this is a controller rather than a
 /// function: sync must be switched off *first*, so no live mirror is running
 /// that could notice the zone vanish and helpfully re-upload the whole store.
-/// Turning sync off rebuilds the model container, which can tear the Settings
-/// sheet's view state down mid-flight, so the work is owned by this singleton
-/// instead of by the view that started it.
+/// Writing the preference is not enough on its own — the mirror lives on the
+/// `ModelContainer`, which is only rebuilt on the next SwiftUI update. So the
+/// flow is two-step: Settings *arms* the purge, and `AppRootView` starts it
+/// after it has rebuilt the container without the mirror. Turning sync off also
+/// tears the Settings sheet's view state down mid-flight, which is the other
+/// reason the work is owned by this singleton rather than by the view.
+///
+/// One thing this cannot do is speak for the user's *other* devices. A device
+/// still syncing treats the missing zone as a fresh setup and uploads its own
+/// copy again, so the copy only stays gone if sync is off everywhere. The
+/// Settings copy says so.
 @MainActor
 @Observable
 final class CloudKitPurgeController {
@@ -28,18 +36,46 @@ final class CloudKitPurgeController {
         case failed(String)
     }
 
-    private(set) var state: State = .idle
+    private(set) var state: State
     private var task: Task<Void, Never>?
+    /// Set when Settings turns sync off and asks for a purge; consumed once the
+    /// container has been rebuilt without the mirror.
+    private var isArmed = false
 
-    private init() {}
+    private init() {
+        // A purge that already finished stays finished across launches.
+        state = SyncSettings.copyWasRemoved() ? .succeeded : .idle
+    }
 
-    /// Starts a purge, or does nothing if one is already running.
+    /// Records that a purge should run as soon as the mirror is actually down.
+    /// Shows as in-progress immediately, because from here on it will run.
+    func arm() {
+        guard state != .running else { return }
+        isArmed = true
+        state = .running
+    }
+
+    /// Runs an armed purge. Called by `AppRootView` after it has rebuilt the
+    /// container for the new sync setting, so no mirror is live to undo it.
+    func startIfArmed() {
+        guard isArmed else { return }
+        isArmed = false
+        run()
+    }
+
+    /// Starts a purge now — the retry path, where sync is already off and the
+    /// container was rebuilt long ago.
     func start() {
         guard state != .running else { return }
         state = .running
+        run()
+    }
+
+    private func run() {
         task = Task { [weak self] in
             do {
                 try await CloudKitPurge.removeMirroredCopy()
+                SyncSettings.setCopyWasRemoved(true)
                 self?.state = .succeeded
             } catch {
                 self?.state = .failed(error.localizedDescription)
@@ -48,8 +84,12 @@ final class CloudKitPurgeController {
     }
 
     /// Clears a finished result so the next attempt starts from a clean slate.
+    /// Turning sync back on uploads the journal again, so a past purge stops
+    /// being true at that point.
     func acknowledge() {
         guard state != .running else { return }
+        isArmed = false
+        SyncSettings.setCopyWasRemoved(false)
         state = .idle
     }
 }
@@ -82,7 +122,9 @@ enum CloudKitPurge {
         }
     }
 
-    private static func isAlreadyGone(_ error: Error) -> Bool {
+    /// Whether an error means the zone is already gone. Not private: the
+    /// partial-failure recursion is the subtlest logic here and is worth a test.
+    static func isAlreadyGone(_ error: Error) -> Bool {
         guard let ckError = error as? CKError else { return false }
         switch ckError.code {
         case .zoneNotFound, .unknownItem:

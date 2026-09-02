@@ -38,15 +38,16 @@ struct SettingsView: View {
                 }
                 .accessibilityIdentifier("turnOffSyncButton")
                 Button("Turn off and remove iCloud copy", role: .destructive) {
-                    // Sync off first, so no live mirror can re-upload the store
-                    // while the zone is being removed.
+                    // Armed, not started: `AppRootView` runs it once it has
+                    // rebuilt the container without the mirror. Starting here
+                    // would race a mirror that is still live.
                     syncEnabled = false
-                    purge.start()
+                    purge.arm()
                 }
                 .accessibilityIdentifier("turnOffSyncAndPurgeButton")
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Records already in iCloud stay there unless you remove them. Removing isn't instant.")
+                Text("Records already in iCloud stay there unless you remove them. Removing isn't instant, and it only lasts if sync is off on your other devices too.")
             }
             .alert(
                 "Delete all placement records?",
@@ -158,8 +159,13 @@ struct SettingsView: View {
                         ProgressView()
                     }
                 case .succeeded:
-                    LabeledContent("iCloud copy", value: "Removed")
-                        .accessibilityIdentifier("purgeSucceededRow")
+                    VStack(alignment: .leading, spacing: 4) {
+                        LabeledContent("iCloud copy", value: "Removed")
+                        Text("A device still syncing will upload it again.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityIdentifier("purgeSucceededRow")
                 case .failed(let message):
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Couldn't remove the iCloud copy")

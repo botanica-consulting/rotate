@@ -13,14 +13,19 @@ nonisolated enum DeepLink {
     }
 
     /// The track a new-placement link asks for, or nil if the URL isn't one.
-    /// A link with no (or an unknown) track falls back to the pump.
+    ///
+    /// An *omitted* track falls back to the pump — that is a link that simply
+    /// didn't say. A track that is present but unrecognised is rejected instead:
+    /// it is a malformed request, and quietly opening the wrong track is worse
+    /// than ignoring the link.
     nonisolated static func newPlacementDevice(from url: URL) -> DeviceType? {
         guard url.scheme == scheme else { return nil }
         guard url.host == newPlacementHost || url.path == "/\(newPlacementHost)" else { return nil }
-        let raw = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+        guard let raw = URLComponents(url: url, resolvingAgainstBaseURL: false)?
             .queryItems?
-            .first { $0.name == "device" }?
+            .first(where: { $0.name == "device" })?
             .value
-        return DeviceType(rawValue: raw ?? "") ?? .pump
+        else { return .pump }
+        return DeviceType(rawValue: raw)
     }
 }

@@ -205,17 +205,17 @@ extension PumpSite {
     /// support every site), minus any individual sites the user has excluded
     /// for this track in Settings. `site(for:)` stays unfiltered so historical
     /// records on an excluded site still render.
-    static func sites(for device: DeviceType) -> [PumpSite] {
-        let disabled = AreaSettings.disabledSites(for: device)
-        let all = catalog + CustomSiteStore.activeSites(for: device)
+    static func sites(for device: DeviceType, defaults: UserDefaults = .standard) -> [PumpSite] {
+        let disabled = AreaSettings.disabledSites(for: device, defaults: defaults)
+        let all = catalog + CustomSiteStore.activeSites(for: device, defaults: defaults)
         guard !disabled.isEmpty else { return all }
         return all.filter { !disabled.contains($0.id) }
     }
 
     /// Every site a track could rotate through, exclusions ignored — the
     /// denominator for the "N of M areas" summaries in Settings.
-    static func allSites(for device: DeviceType) -> [PumpSite] {
-        catalog + CustomSiteStore.activeSites(for: device)
+    static func allSites(for device: DeviceType, defaults: UserDefaults = .standard) -> [PumpSite] {
+        catalog + CustomSiteStore.activeSites(for: device, defaults: defaults)
     }
 
     /// A user-added site, shaped like a catalog entry so every card, list, and

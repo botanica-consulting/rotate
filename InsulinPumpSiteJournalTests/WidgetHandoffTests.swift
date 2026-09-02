@@ -120,6 +120,14 @@ struct WidgetHandoffTests {
         #expect(router.pendingNewDevice == nil)
     }
 
+    /// The router must not act on a link naming a track it can't resolve.
+    @Test func aRouterIgnoresAnUnknownTrack() throws {
+        let router = AppRouter.shared
+        router.pendingNewDevice = nil
+        #expect(!router.handle(try #require(URL(string: "rotate://new?device=banana"))))
+        #expect(router.pendingNewDevice == nil)
+    }
+
     @Test func siriRequestSurvivesUntilConsumed() {
         // A cold launch from Siri sets this before any view exists, so it has to
         // still be there when the journal appears.

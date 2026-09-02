@@ -45,8 +45,14 @@ struct AppRootView: View {
         container
             // Reuses the recovery path's rebuild: the store file is the same
             // either way, so only the mirror changes.
-            .onChange(of: syncEnabled) { _, _ in
+            .onChange(of: syncEnabled) { _, isOn in
                 containerResult = Self.makeContainer()
+                // Only now is the mirror actually down, so this is where an
+                // armed purge can safely run: deleting the zone under a live
+                // mirror would just prompt it to upload the store again.
+                if !isOn {
+                    CloudKitPurgeController.shared.startIfArmed()
+                }
             }
             .overlay { privacyShield }
             // A widget tap. The router holds the request until the journal is on
@@ -145,9 +151,18 @@ struct AppRootView: View {
 
     /// A UI-test or unit-test host launch: straight to the journal, with nothing
     /// presented over it.
-    private var isTestLaunch: Bool {
-        CommandLine.arguments.contains("--uitest-reset")
-            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    private var isTestLaunch: Bool { Self.isTestLaunchProcess }
+
+    /// Whether this process was launched by a test rather than by a person.
+    ///
+    /// Any `--uitest-*` flag counts, not just `--uitest-reset`. A visual-QA
+    /// launch that named only its own flag used to fall through to the live
+    /// CloudKit store and crash on a simulator with no iCloud account — the
+    /// kind of trap that only shows up when someone adds the next test, so the
+    /// predicate is broad by design.
+    static var isTestLaunchProcess: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || CommandLine.arguments.contains(where: { $0.hasPrefix("--uitest-") })
     }
 
     private static func makeContainer() -> Result<ModelContainer, Error> {
@@ -156,8 +171,7 @@ struct AppRootView: View {
         // spread of past placements so recency tiers are visible in visual QA.
         // The unit-test host also stays in memory: tests build their own
         // containers, and the host must not require CloudKit entitlements.
-        if CommandLine.arguments.contains("--uitest-reset")
-            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+        if isTestLaunchProcess {
             return Result {
                 let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
                 let container = try ModelContainer(

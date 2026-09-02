@@ -159,7 +159,7 @@ schemes:
         # The screenshot walk is visual QA, not a functional test — it runs
         # in the VisualWalk scheme so default test runs stay fast.
         - name: InsulinPumpSiteJournalUITests
-          skippedTests: [ScreenshotWalkUITests, AppStoreScreenshotsUITests]
+          skippedTests: [ScreenshotWalkUITests, AppStoreScreenshotsUITests, WizardShotUITests]
 
   VisualWalk:
     build:

@@ -15,9 +15,28 @@ enum SyncSettings {
     /// The CloudKit container the private mirror writes to.
     static let cloudKitContainerID = "iCloud.consulting.botanica.rotate"
 
-    static var isEnabled: Bool {
+    /// Whether a purge has already removed the mirrored copy. Persisted, so the
+    /// result survives a relaunch and Settings doesn't invite a second purge of
+    /// a copy that is already gone. Cleared when sync is turned back on, which
+    /// uploads the journal again.
+    static let copyRemovedKey = "iCloudCopyRemoved"
+
+    /// `defaults` is injectable so the fallback below is testable — it is the
+    /// behaviour every 1.1.0 install inherits, so it needs a real test rather
+    /// than one that asserts a fresh suite is empty.
+    static func isEnabled(defaults: UserDefaults = .standard) -> Bool {
         // Absent means "never chosen" — which is on, matching the default the
         // toggle shows and the behaviour every 1.1.0 install already has.
-        UserDefaults.standard.object(forKey: storageKey) as? Bool ?? true
+        defaults.object(forKey: storageKey) as? Bool ?? true
+    }
+
+    static var isEnabled: Bool { isEnabled() }
+
+    static func copyWasRemoved(defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: copyRemovedKey)
+    }
+
+    static func setCopyWasRemoved(_ removed: Bool, defaults: UserDefaults = .standard) {
+        defaults.set(removed, forKey: copyRemovedKey)
     }
 }
