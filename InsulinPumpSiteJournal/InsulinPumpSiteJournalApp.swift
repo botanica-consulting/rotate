@@ -71,7 +71,11 @@ struct AppRootView: View {
                 @unknown default:
                     break
                 }
+                updatePrivacyOverlay()
             }
+            .onChange(of: lock.isLocked) { _, _ in updatePrivacyOverlay() }
+            .onChange(of: lock.isAuthenticating) { _, _ in updatePrivacyOverlay() }
+            .task { updatePrivacyOverlay() }
             // A widget tap. The router holds the request until the journal is on
             // screen, so a cold launch works too.
             .onOpenURL { url in
@@ -114,18 +118,31 @@ struct AppRootView: View {
     @ViewBuilder
     private var privacyShield: some View {
         if scenePhase != .active {
-            ZStack {
-                AppBackground()
-                Image("AppLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 120, height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
-                    .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
-            }
-            .ignoresSafeArea()
-            .accessibilityHidden(true)
-            .transition(.opacity)
+            PrivacyShieldView()
+                .transition(.opacity)
+        }
+    }
+
+    /// Drives the overlay window, which is what actually covers sheets. The
+    /// root-view overlays above stay as a second layer for the case where no
+    /// window scene can be found.
+    ///
+    /// Nothing moves while the biometric sheet is up: presenting it makes the
+    /// scene inactive, so reacting to that would swap windows underneath the
+    /// system prompt.
+    private func updatePrivacyOverlay() {
+        guard !isTestLaunch else {
+            PrivacyOverlayWindow.shared.show(.none)
+            return
+        }
+        guard !lock.isAuthenticating else { return }
+
+        if scenePhase != .active {
+            PrivacyOverlayWindow.shared.show(.shield)
+        } else if lock.isLocked {
+            PrivacyOverlayWindow.shared.show(.lock)
+        } else {
+            PrivacyOverlayWindow.shared.show(.none)
         }
     }
 
