@@ -64,7 +64,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("confirmResetButton")
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Deletes your history here and from iCloud. Can't be undone. Type RESET to confirm.")
+                Text("Deletes your history here and from iCloud. Reaching your other devices needs a connection, so it isn't instant. Can't be undone. Type RESET to confirm.")
             }
             .onChange(of: confirmingReset) { _, isPresented in
                 if !isPresented { resetConfirmationText = "" }
@@ -208,7 +208,7 @@ struct SettingsView: View {
 
     private var syncFooter: String {
         syncEnabled
-            ? "Stored in your private iCloud, where only you can reach it. Turn this off to keep the journal on this device."
+            ? "Kept in your private iCloud — Apple holds it, nobody else. Turn this off to keep the journal on this device."
             : "Kept on this device only. Turning sync back on uploads the journal again."
     }
 
