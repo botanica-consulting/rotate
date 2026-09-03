@@ -450,7 +450,7 @@ struct WizardDisclaimerView: View {
                     point(
                         icon: "lock.fill",
                         title: "Your data stays yours",
-                        text: "No account, no analytics, no tracking. Your journal syncs to your private iCloud — Apple holds that copy, nobody else — or turn sync off in Settings and keep it on this device."
+                        text: "No account, no analytics, no tracking. Your journal syncs to your private iCloud, or turn sync off in Settings and keep it on this device."
                     )
                     point(
                         icon: "heart.fill",

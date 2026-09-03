@@ -74,6 +74,10 @@ targets:
         # it until Apple actually stops accepting it.
         UIRequiresFullScreen: true
         ITSAppUsesNonExemptEncryption: false
+        # Shown in the Face ID system prompt when the journal is locked. Required
+        # whenever LocalAuthentication can reach biometrics — without it the
+        # evaluate call fails outright rather than prompting.
+        NSFaceIDUsageDescription: Unlocks your journal so only you can open it.
         # Loop registers the loop:// scheme; declaring it lets the handoff
         # check canOpenURL and open Loop after a placement is confirmed.
         LSApplicationQueriesSchemes: [loop]

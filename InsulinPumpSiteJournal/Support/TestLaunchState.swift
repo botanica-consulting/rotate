@@ -13,6 +13,10 @@ enum TestLaunchState {
         // too — otherwise a hand-tested purge on this simulator leaves Settings
         // showing "Removed" and the sync test can't find the purge button.
         UserDefaults.standard.removeObject(forKey: SyncSettings.copyRemovedKey)
+        // A UI test can't answer a Face ID prompt, so the gate must be off and
+        // the shared lock must not carry a locked state in from a real launch.
+        UserDefaults.standard.removeObject(forKey: AppLockSettings.storageKey)
+        AppLock.shared.unlockForTesting()
         // Derived from the store, which is empty on this launch.
         CustomSiteStore.refreshMirror([])
     }

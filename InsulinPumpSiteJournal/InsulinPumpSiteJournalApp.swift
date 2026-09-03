@@ -40,6 +40,9 @@ struct AppRootView: View {
     @AppStorage(ReleaseNotes.lastSeenVersionKey) private var lastSeenVersion = ""
     @State private var showingWhatsNew = false
     @State private var containerResult = AppRootView.makeContainer()
+    /// Face ID / passcode gate. Shared, because the system's auth sheet takes
+    /// scene focus and would tear view-local state down underneath itself.
+    private var lock = AppLock.shared
 
     var body: some View {
         container
@@ -54,7 +57,21 @@ struct AppRootView: View {
                     CloudKitPurgeController.shared.startIfArmed()
                 }
             }
+            // Order matters: the lock sits under the shield, so backgrounding a
+            // locked app still shows the shield rather than the lock screen
+            // sliding into the app-switcher snapshot.
+            .overlay { lockScreen }
             .overlay { privacyShield }
+            .onChange(of: scenePhase) { _, phase in
+                switch phase {
+                case .active:
+                    lock.sceneBecameActive()
+                case .inactive, .background:
+                    lock.sceneWentInactive()
+                @unknown default:
+                    break
+                }
+            }
             // A widget tap. The router holds the request until the journal is on
             // screen, so a cold launch works too.
             .onOpenURL { url in
@@ -77,6 +94,16 @@ struct AppRootView: View {
                     containerResult = Self.makeContainer()
                 }
             )
+        }
+    }
+
+    /// The journal behind Face ID, when the user has asked for that. Test
+    /// launches are never locked — a UI test cannot answer a biometric prompt.
+    @ViewBuilder
+    private var lockScreen: some View {
+        if lock.isLocked && !isTestLaunch {
+            AppLockView()
+                .transition(.opacity)
         }
     }
 

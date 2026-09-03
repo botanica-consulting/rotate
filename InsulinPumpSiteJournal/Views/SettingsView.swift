@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
     @AppStorage(SyncSettings.storageKey) private var syncEnabled = true
+    @AppStorage(AppLockSettings.storageKey) private var requireUnlock = false
     @State private var confirmingSyncOff = false
     /// Owned by a singleton, not this view: turning sync off rebuilds the model
     /// container, which can tear this sheet's state down while the purge runs.
@@ -25,6 +26,7 @@ struct SettingsView: View {
                 silhouetteSection
                 devicesSection
                 syncSection
+                lockSection
                 resetSection
                 footerSection
             }
@@ -47,7 +49,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("turnOffSyncAndPurgeButton")
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Records already in iCloud stay there unless you remove them. Removing isn't instant, and it only lasts if sync is off on your other devices too.")
+                Text("Records already in iCloud stay there unless you remove them.")
             }
             .alert(
                 "Delete all placement records?",
@@ -64,7 +66,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("confirmResetButton")
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Deletes your history here and from iCloud. Reaching your other devices needs a connection, so it isn't instant. Can't be undone. Type RESET to confirm.")
+                Text("Deletes your history here and from iCloud. Can't be undone. Type RESET to confirm.")
             }
             .onChange(of: confirmingReset) { _, isPresented in
                 if !isPresented { resetConfirmationText = "" }
@@ -159,13 +161,8 @@ struct SettingsView: View {
                         ProgressView()
                     }
                 case .succeeded:
-                    VStack(alignment: .leading, spacing: 4) {
-                        LabeledContent("iCloud copy", value: "Removed")
-                        Text("A device still syncing will upload it again.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .accessibilityIdentifier("purgeSucceededRow")
+                    LabeledContent("iCloud copy", value: "Removed")
+                        .accessibilityIdentifier("purgeSucceededRow")
                 case .failed(let message):
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Couldn't remove the iCloud copy")
@@ -208,8 +205,46 @@ struct SettingsView: View {
 
     private var syncFooter: String {
         syncEnabled
-            ? "Kept in your private iCloud — Apple holds it, nobody else. Turn this off to keep the journal on this device."
+            ? "Kept in your private iCloud. Turn this off to keep the journal on this device."
             : "Kept on this device only. Turning sync back on uploads the journal again."
+    }
+
+    /// The Face ID gate. Hidden entirely when the device has nothing to ask
+    /// with — a toggle that can only fail is worse than no toggle.
+    @ViewBuilder
+    private var lockSection: some View {
+        let availability = AppLock.availability()
+        if availability.canAuthenticate {
+            Section {
+                Toggle(lockLabel(for: availability), isOn: lockBinding)
+                    .accessibilityIdentifier("requireUnlockToggle")
+            } header: {
+                Text("Privacy")
+            } footer: {
+                Text("Asks when you open Rotate. The journal is always hidden in the app switcher.")
+            }
+        }
+    }
+
+    private func lockLabel(for availability: AppLock.Availability) -> String {
+        switch availability {
+        case .biometric(.faceID): "Require Face ID"
+        case .biometric(.touchID): "Require Touch ID"
+        case .biometric, .passcodeOnly: "Require passcode"
+        case .none: "Require passcode"
+        }
+    }
+
+    private var lockBinding: Binding<Bool> {
+        Binding(
+            get: { requireUnlock },
+            // Switching it on must not lock the screen the user is looking at,
+            // so the lock only takes effect at the next open.
+            set: { isOn in
+                requireUnlock = isOn
+                AppLock.shared.settingChanged(to: isOn)
+            }
+        )
     }
 
     @ViewBuilder
