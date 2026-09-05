@@ -9,10 +9,18 @@ struct HistoryHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \PlacementRecord.placedAt, order: .reverse)
     private var records: [PlacementRecord]
+    /// Observed only to keep `CustomSiteStore`'s mirror current. The site
+    /// catalog is read from static entry points with no model context, so the
+    /// live query is refreshed into UserDefaults here — which also catches a
+    /// custom site arriving from another device through CloudKit.
+    @Query(sort: \CustomSite.createdAt, order: .forward)
+    private var customSites: [CustomSite]
 
     /// Non-nil while the new-placement flow is open, carrying which track to
     /// record.
     @State private var pendingNewDevice: DeviceType?
+    /// Requests arriving from outside the UI — a Siri shortcut or a widget tap.
+    private var router = AppRouter.shared
     @State private var showingBodyMap = false
     @State private var showingSettings = false
     @State private var selectedRecord: PlacementRecord?
@@ -29,6 +37,29 @@ struct HistoryHomeView: View {
     /// worn pump and sensor read as still on (not one closing the other).
     private var historyEntries: [PlacementTimeline.Entry] {
         PlacementTimeline.combinedEntries(records: records)
+    }
+
+    /// Changes worth republishing the widget snapshot for: which placement is
+    /// current on either track, and where it sits.
+    private var snapshotKey: [String] {
+        DeviceType.allCases.map { device in
+            guard let current = timeline(for: device).current else { return "\(device.rawValue):none" }
+            return "\(device.rawValue):\(current.siteID):\(current.placedAt.timeIntervalSince1970)"
+        }
+    }
+
+    /// Opens the new-placement flow if something outside the UI asked for it,
+    /// then clears the request so it fires once.
+    private func consumeRouterRequest() {
+        guard let device = router.pendingNewDevice else { return }
+        router.pendingNewDevice = nil
+        pendingNewDevice = device
+    }
+
+    /// Changes worth rewriting the mirror for — a site added, renamed,
+    /// archived, or restored.
+    private var customSiteMirrorKey: [String] {
+        customSites.map { "\($0.siteID)|\($0.name)|\($0.isArchived)" }
     }
 
     /// Per-track timelines driving the two current cards and the per-device
@@ -70,6 +101,22 @@ struct HistoryHomeView: View {
                     .accessibilityIdentifier("bodyMapButton")
                 }
             }
+            .onChange(of: customSiteMirrorKey, initial: true) { _, _ in
+                CustomSiteStore.refreshMirror(customSites)
+            }
+            // Keeps the widget's snapshot in step: one hook covers a new site, a
+            // deletion, an edited time, and a change merged in from another
+            // device through CloudKit.
+            .onChange(of: snapshotKey, initial: true) { _, _ in
+                SnapshotPublisher.refresh(from: records)
+            }
+            // A widget tap or Siri shortcut. Handled on appear as well as on
+            // change, since a cold launch sets the request before this view
+            // exists and there is no change to observe.
+            .task { consumeRouterRequest() }
+            .onChange(of: router.pendingNewDevice) { _, _ in
+                consumeRouterRequest()
+            }
             .fullScreenCover(item: $pendingNewDevice) { device in
                 NewPodFlowView(deviceType: device)
             }
@@ -83,6 +130,10 @@ struct HistoryHomeView: View {
                 PodRecordDetailView(
                     record: record,
                     stop: historyEntries.first { $0.id == record.id }?.stop,
+                    // Bounds come from the record's own track, so a time edit
+                    // can only move within the gap around it.
+                    bounds: timeline(for: DeviceType(rawValue: record.deviceType) ?? .pump)
+                        .timingBounds(for: record),
                     onDelete: { pendingDelete = record }
                 )
             }

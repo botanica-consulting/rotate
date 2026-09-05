@@ -7,7 +7,10 @@ import Foundation
 ///
 /// Terminology: the pump track is always "pump" (lowercase mid-sentence),
 /// never "Pod" — one word across the whole app.
-enum DeviceType: String, CaseIterable, Identifiable {
+/// Nonisolated: a pure value type, read from the widget extension's timeline
+/// code and from an App Intent's `perform()`, neither of which is on the main
+/// actor.
+nonisolated enum DeviceType: String, CaseIterable, Identifiable, Sendable {
     case pump
     case cgm
 

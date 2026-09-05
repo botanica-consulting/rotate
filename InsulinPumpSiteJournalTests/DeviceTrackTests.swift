@@ -6,14 +6,24 @@ import Testing
 /// The CGM sensor vertical: a second rotation track that shares the record
 /// store and site geometry with the pump track but is journaled independently.
 struct DeviceTrackTests {
+    /// An empty suite, so what a UI test (or hand-testing) left in the
+    /// simulator's real defaults can't decide whether these pass. The catalog
+    /// reads are global by design — `PumpSite.sites(for:)` is called from
+    /// shapes and thumbnails that hold no context — so the isolation has to
+    /// happen here, at the call.
+    private func isolatedDefaults() -> UserDefaults {
+        UserDefaults(suiteName: "device-track-tests-\(UUID().uuidString)")!
+    }
+
     @Test func cgmCatalogIsTheFullBodyCatalog() {
+        let defaults = isolatedDefaults()
         // Both tracks support every site; the sensor is narrowed only by the
         // per-track area toggles in Settings, not by a baked-in subset.
-        #expect(PumpSite.sites(for: .cgm).map(\.id) == PumpSite.catalog.map(\.id))
+        #expect(PumpSite.sites(for: .cgm, defaults: defaults).map(\.id) == PumpSite.catalog.map(\.id))
 
         // Every sensor site reuses the pump catalog's baked area geometry for
         // every body type — no sensor-specific artwork.
-        for site in PumpSite.sites(for: .cgm) {
+        for site in PumpSite.sites(for: .cgm, defaults: defaults) {
             #expect(PumpSite.site(for: site.id) != nil)
             for bodyType in BodyType.allCases {
                 #expect(
@@ -25,8 +35,10 @@ struct DeviceTrackTests {
     }
 
     @Test func cgmSitesSpanEveryRegion() {
-        let regions = Set(PumpSite.sites(for: .cgm).map(\.region))
-        #expect(regions == Set(PumpSite.Region.allCases))
+        // Every region that exists on the figure. `.custom` holds the user's own
+        // sites, which no default install has.
+        let regions = Set(PumpSite.catalog.map(\.region))
+        #expect(regions == Set(PumpSite.Region.anatomical))
     }
 
     @Test func perDeviceTimelinesHaveIndependentCurrent() {
@@ -54,11 +66,11 @@ struct DeviceTrackTests {
 
     @Test func cgmSuggestionsStayWithinTheSensorCatalog() {
         let engine = SiteSuggestionEngine()
-        let sensorIDs = Set(PumpSite.sites(for: .cgm).map(\.id))
+        let sensorIDs = Set(PumpSite.sites(for: .cgm, defaults: isolatedDefaults()).map(\.id))
 
         // Empty history → the sensor starter defaults, in order.
         let starters = engine.suggestions(
-            from: PumpSite.sites(for: .cgm),
+            from: PumpSite.sites(for: .cgm, defaults: isolatedDefaults()),
             history: [],
             starterSiteIDs: PumpSite.starterSiteIDs(for: .cgm)
         )
@@ -70,7 +82,7 @@ struct DeviceTrackTests {
             PlacementRecord(siteID: "abdomen-left", placedAt: .now, deviceType: DeviceType.cgm.rawValue),
         ]
         let result = engine.suggestions(
-            from: PumpSite.sites(for: .cgm),
+            from: PumpSite.sites(for: .cgm, defaults: isolatedDefaults()),
             history: history,
             starterSiteIDs: PumpSite.starterSiteIDs(for: .cgm)
         )

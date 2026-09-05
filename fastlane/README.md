@@ -63,6 +63,22 @@ Upload App Store listing text + screenshots (no binary, no submit)
 
 Upload metadata + screenshots and submit the latest build for review
 
+### ios builds
+
+```sh
+[bundle exec] fastlane ios builds
+```
+
+Read-only: list the most recent TestFlight builds
+
+### ios audit_ids
+
+```sh
+[bundle exec] fastlane ios audit_ids
+```
+
+Read-only: report enabled capabilities for both bundle ids
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.

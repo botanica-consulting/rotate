@@ -11,7 +11,7 @@ settings:
     # can bump the build number per TestFlight upload.
     VERSIONING_SYSTEM: apple-generic
     CURRENT_PROJECT_VERSION: 1
-    MARKETING_VERSION: "1.1.0"
+    MARKETING_VERSION: "1.1.1"
     SWIFT_VERSION: "6.0"
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     TARGETED_DEVICE_FAMILY: "1"
@@ -27,6 +27,8 @@ targets:
     sources:
       - path: InsulinPumpSiteJournal
         excludes: ["*.entitlements"]
+      # Compiled into the widget extension too — see the RotateWidget target.
+      - path: Shared
     # XcodeGen generates this file on every `xcodegen generate` — the
     # properties here are the source of truth, not the .entitlements file.
     entitlements:
@@ -36,6 +38,14 @@ targets:
           - iCloud.consulting.botanica.rotate
         com.apple.developer.icloud-services: [CloudKit]
         aps-environment: development
+        # Shared with the widget extension: the widget can't open the SwiftData
+        # store (app container, CloudKit-mirrored), so the app publishes a small
+        # snapshot into this group instead.
+        com.apple.security.application-groups:
+          - group.consulting.botanica.rotate
+    dependencies:
+      - target: RotateWidget
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: consulting.botanica.rotate
@@ -64,12 +74,55 @@ targets:
         # it until Apple actually stops accepting it.
         UIRequiresFullScreen: true
         ITSAppUsesNonExemptEncryption: false
+        # Shown in the Face ID system prompt when the journal is locked. Required
+        # whenever LocalAuthentication can reach biometrics — without it the
+        # evaluate call fails outright rather than prompting.
+        NSFaceIDUsageDescription: Unlocks your journal so only you can open it.
         # Loop registers the loop:// scheme; declaring it lets the handoff
         # check canOpenURL and open Loop after a placement is confirmed.
         LSApplicationQueriesSchemes: [loop]
+        # Our own scheme, so a widget tap can open the new-placement flow
+        # (rotate://new?device=pump — see Shared/DeepLink.swift).
+        CFBundleURLTypes:
+          - CFBundleURLName: consulting.botanica.rotate
+            CFBundleTypeRole: Editor
+            CFBundleURLSchemes: [rotate]
         # CloudKit pushes a silent notification when another device writes;
         # this lets the mirror pull those changes in the background.
         UIBackgroundModes: [remote-notification]
+
+  # Lock-screen (and home-screen) readout of how long the current site has been
+  # on. It reads the snapshot the app writes to the shared App Group rather than
+  # the SwiftData store, so it needs neither the store's URL nor CloudKit.
+  RotateWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: RotateWidget
+      - path: Shared
+      # The only two app files the widget needs: the track enum and the palette.
+      # AppTheme's tier colors live in AppTheme+Recency.swift precisely so this
+      # doesn't drag the SwiftData layer into the extension.
+      - path: InsulinPumpSiteJournal/Models/DeviceType.swift
+      - path: InsulinPumpSiteJournal/Design/AppTheme.swift
+    entitlements:
+      path: RotateWidget/RotateWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.consulting.botanica.rotate
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: consulting.botanica.rotate.widget
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_EMIT_LOC_STRINGS: "YES"
+    info:
+      path: RotateWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Rotate
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
   InsulinPumpSiteJournalTests:
     type: bundle.unit-test
@@ -110,7 +163,7 @@ schemes:
         # The screenshot walk is visual QA, not a functional test — it runs
         # in the VisualWalk scheme so default test runs stay fast.
         - name: InsulinPumpSiteJournalUITests
-          skippedTests: [ScreenshotWalkUITests, AppStoreScreenshotsUITests]
+          skippedTests: [ScreenshotWalkUITests, AppStoreScreenshotsUITests, WizardShotUITests]
 
   VisualWalk:
     build:
