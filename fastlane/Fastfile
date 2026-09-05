@@ -257,6 +257,24 @@ platform :ios do
     )
   end
 
+  desc "Read-only: list the most recent TestFlight builds"
+  lane :builds do
+    app_store_connect_api_key(
+      key_id: ENV["FASTLANE_KEY_ID"],
+      issuer_id: ENV["FASTLANE_ISSUER_ID"],
+      key_filepath: File.expand_path(ENV["FASTLANE_KEY_PATH"])
+    )
+
+    app = Spaceship::ConnectAPI::App.find(LOCAL_BUNDLE_ID)
+    UI.user_error!("No App Store Connect record for #{LOCAL_BUNDLE_ID}") unless app
+    # app_version reads the linked preReleaseVersion, which only comes back
+    # when it is explicitly included in the request.
+    builds = app.get_builds(sort: "-uploadedDate", limit: 8, includes: "preReleaseVersion")
+    builds.each do |build|
+      UI.message("#{build.app_version}  build #{build.version}  #{build.processing_state}  uploaded #{build.uploaded_date}")
+    end
+  end
+
   desc "Read-only: report enabled capabilities for both bundle ids"
   lane :audit_ids do
     app_store_connect_api_key(
