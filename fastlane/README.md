@@ -63,6 +63,14 @@ Upload App Store listing text + screenshots (no binary, no submit)
 
 Upload metadata + screenshots and submit the latest build for review
 
+### ios builds
+
+```sh
+[bundle exec] fastlane ios builds
+```
+
+Read-only: list the most recent TestFlight builds
+
 ### ios audit_ids
 
 ```sh
