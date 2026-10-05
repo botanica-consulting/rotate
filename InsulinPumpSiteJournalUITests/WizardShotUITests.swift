@@ -32,6 +32,12 @@ final class WizardShotUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 3.0)
         snap("wizard-3c-later")
 
+        // Page 4: the Siri phrases and the lock-screen widget mock.
+        app.buttons["wizardContinueButton"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["wizardShortcutsLink"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
+        snap("wizard-4-shortcuts")
+
         // Last page → pushes the mandatory disclaimer.
         app.buttons["wizardContinueButton"].tap()
         XCTAssertTrue(app.buttons["wizardDisclaimerButton"].waitForExistence(timeout: 5))

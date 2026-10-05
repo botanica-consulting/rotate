@@ -69,10 +69,15 @@ struct SiteSuggestionCard: View {
                 // its PUMP/SENSOR tag share one row in the text block, so the
                 // tag lives inside the card layout instead of floating over the
                 // figure (where a zoomed silhouette could slide under it).
+                // A custom site has no place on the figure, so it gets no
+                // front/rear caption — the row keeps its height for the device
+                // tag either way.
                 HStack {
-                    Text(site.bodyView == .front ? "Front" : "Rear")
-                        .font(.caption2.smallCaps())
-                        .foregroundStyle(.secondary)
+                    if !site.isCustom {
+                        Text(site.bodyView == .front ? "Front" : "Rear")
+                            .font(.caption2.smallCaps())
+                            .foregroundStyle(.secondary)
+                    }
                     if let occupiedBy {
                         Spacer(minLength: 8)
                         DeviceChip(device: occupiedBy)

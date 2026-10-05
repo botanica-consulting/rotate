@@ -8,6 +8,12 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @AppStorage(BodyType.storageKey) private var bodyTypeRaw = BodyType.neutral.rawValue
+    @AppStorage(SyncSettings.storageKey) private var syncEnabled = true
+    @AppStorage(AppLockSettings.storageKey) private var requireUnlock = false
+    @State private var confirmingSyncOff = false
+    /// Owned by a singleton, not this view: turning sync off rebuilds the model
+    /// container, which can tear this sheet's state down while the purge runs.
+    private var purge = CloudKitPurgeController.shared
     @State private var confirmingReset = false
     /// Typed reset confirmation — the journal now syncs, so a reset reaches
     /// every device. Deleting requires typing RESET, not just a second tap.
@@ -19,8 +25,31 @@ struct SettingsView: View {
             Form {
                 silhouetteSection
                 devicesSection
+                syncSection
+                lockSection
                 resetSection
                 footerSection
+            }
+            .confirmationDialog(
+                "Turn off iCloud sync?",
+                isPresented: $confirmingSyncOff,
+                titleVisibility: .visible
+            ) {
+                Button("Turn off sync") {
+                    syncEnabled = false
+                }
+                .accessibilityIdentifier("turnOffSyncButton")
+                Button("Turn off and remove iCloud copy", role: .destructive) {
+                    // Armed, not started: `AppRootView` runs it once it has
+                    // rebuilt the container without the mirror. Starting here
+                    // would race a mirror that is still live.
+                    syncEnabled = false
+                    purge.arm()
+                }
+                .accessibilityIdentifier("turnOffSyncAndPurgeButton")
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Records already in iCloud stay there unless you remove them.")
             }
             .alert(
                 "Delete all placement records?",
@@ -37,7 +66,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("confirmResetButton")
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This removes your placement history here and, through iCloud, from your other devices. It can't be undone. Type RESET to confirm.")
+                Text("Deletes your history here and from iCloud. Can't be undone. Type RESET to confirm.")
             }
             .onChange(of: confirmingReset) { _, isPresented in
                 if !isPresented { resetConfirmationText = "" }
@@ -89,7 +118,7 @@ struct SettingsView: View {
         } header: {
             Text("Silhouette")
         } footer: {
-            Text("The figure shown on the body map and site previews.")
+            Text("Used on the body map and site previews.")
         }
     }
 
@@ -101,7 +130,7 @@ struct SettingsView: View {
             deviceLink(for: .pump)
             deviceLink(for: .cgm)
         } footer: {
-            Text("Companion app and areas for each track.")
+            Text("Companion app, areas and custom sites for each track.")
         }
     }
 
@@ -114,6 +143,110 @@ struct SettingsView: View {
         .accessibilityIdentifier(device == .pump ? "pumpSettingsLink" : "sensorSettingsLink")
     }
 
+    /// The privacy switch. Sync is on by default — it is what makes the journal
+    /// survive a lost phone — but placement sites, dates and notes are personal
+    /// health-related records, so keeping them on one device has to be possible.
+    @ViewBuilder
+    private var syncSection: some View {
+        Section {
+            Toggle("Sync with iCloud", isOn: syncBinding)
+                .accessibilityIdentifier("iCloudSyncToggle")
+
+            if !syncEnabled {
+                switch purge.state {
+                case .running:
+                    HStack {
+                        Text("Removing from iCloud…")
+                        Spacer()
+                        ProgressView()
+                    }
+                case .succeeded:
+                    LabeledContent("iCloud copy", value: "Removed")
+                        .accessibilityIdentifier("purgeSucceededRow")
+                case .failed(let message):
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Couldn't remove the iCloud copy")
+                            .font(.subheadline.weight(.medium))
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Try again") { purge.start() }
+                            .accessibilityIdentifier("retryPurgeButton")
+                    }
+                case .idle:
+                    Button("Remove copy from iCloud…", role: .destructive) {
+                        purge.start()
+                    }
+                    .accessibilityIdentifier("purgeICloudButton")
+                }
+            }
+        } header: {
+            Text("iCloud sync")
+        } footer: {
+            Text(syncFooter)
+        }
+    }
+
+    private var syncBinding: Binding<Bool> {
+        Binding(
+            get: { syncEnabled },
+            // Turning it off is a decision with consequences for data already in
+            // iCloud, so it goes through the dialog rather than straight through.
+            set: { isOn in
+                if isOn {
+                    purge.acknowledge()
+                    syncEnabled = true
+                } else {
+                    confirmingSyncOff = true
+                }
+            }
+        )
+    }
+
+    private var syncFooter: String {
+        syncEnabled
+            ? "Kept in your private iCloud. Turn this off to keep the journal on this device."
+            : "Kept on this device only. Turning sync back on uploads the journal again."
+    }
+
+    /// The Face ID gate. Hidden entirely when the device has nothing to ask
+    /// with — a toggle that can only fail is worse than no toggle.
+    @ViewBuilder
+    private var lockSection: some View {
+        let availability = AppLock.availability()
+        if availability.canAuthenticate {
+            Section {
+                Toggle(lockLabel(for: availability), isOn: lockBinding)
+                    .accessibilityIdentifier("requireUnlockToggle")
+            } header: {
+                Text("Privacy")
+            } footer: {
+                Text("Asks when you open Rotate. The journal is always hidden in the app switcher.")
+            }
+        }
+    }
+
+    private func lockLabel(for availability: AppLock.Availability) -> String {
+        switch availability {
+        case .biometric(.faceID): "Require Face ID"
+        case .biometric(.touchID): "Require Touch ID"
+        case .biometric, .passcodeOnly: "Require passcode"
+        case .none: "Require passcode"
+        }
+    }
+
+    private var lockBinding: Binding<Bool> {
+        Binding(
+            get: { requireUnlock },
+            // Switching it on must not lock the screen the user is looking at,
+            // so the lock only takes effect at the next open.
+            set: { isOn in
+                requireUnlock = isOn
+                AppLock.shared.settingChanged(to: isOn)
+            }
+        )
+    }
+
     @ViewBuilder
     private var resetSection: some View {
         Section {
@@ -122,7 +255,7 @@ struct SettingsView: View {
             }
             .accessibilityIdentifier("resetJournalButton")
         } footer: {
-            Text("Deletes every placement record — pump and sensor — here and from iCloud on your other devices. Settings are kept.")
+            Text("Deletes every placement, both tracks. Settings and custom sites are kept.")
         }
     }
 
@@ -134,7 +267,7 @@ struct SettingsView: View {
         Section {
         } footer: {
             VStack(spacing: 14) {
-                Text("Syncs only to your private iCloud — Rotate never keeps your data on its own servers.")
+                Text("No account, no analytics. Your journal is yours.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -204,7 +337,7 @@ struct DeviceSettingsView: View {
                 }
                 .accessibilityIdentifier(device == .pump ? "pumpCompanionPicker" : "sensorCompanionPicker")
             } footer: {
-                Text("Confirming a \(device.noun) placement opens its companion app to activate and pair — choose None to stay in Rotate.")
+                Text("Opened after each placement. Choose None to stay in Rotate.")
             }
 
             Section {
@@ -219,22 +352,49 @@ struct DeviceSettingsView: View {
                     }
                 }
                 .accessibilityIdentifier(device == .pump ? "pumpRegionsLink" : "sensorRegionsLink")
-                .accessibilityLabel("Areas, \(enabledAreaCount) of \(PumpSite.catalog.count) on")
+                .accessibilityLabel("Areas, \(enabledAreaCount) of \(areaTotal) on")
             } footer: {
-                Text("Choose which body areas can be suggested and shown on the body map for your \(device.noun).")
+                Text("Which areas this track rotates through.")
+            }
+
+            Section {
+                NavigationLink {
+                    CustomSitesView(device: device)
+                } label: {
+                    HStack {
+                        Text("Custom sites")
+                        Spacer()
+                        Text(customSiteSummary)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityIdentifier(device == .pump ? "pumpCustomSitesLink" : "sensorCustomSitesLink")
+            } footer: {
+                Text("Custom sites appear as plain area markers on the map.")
             }
         }
         .navigationTitle(device.displayName)
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    private var customSiteSummary: String {
+        let count = CustomSiteStore.activeSites(for: device).count
+        return count == 0 ? "None" : "\(count)"
+    }
+
+    /// Counted against every site this track could use — the built-in catalog
+    /// plus its own custom sites — so adding one moves these numbers too.
+    private var areaTotal: Int { PumpSite.allSites(for: device).count }
+
     private var enabledAreaCount: Int {
-        PumpSite.catalog.count - AreaSettings.parse(disabledRaw).count
+        let known = Set(PumpSite.allSites(for: device).map(\.id))
+        // Only count exclusions that still match a live site: an archived custom
+        // site's leftover exclusion must not make the tally go negative.
+        return areaTotal - AreaSettings.parse(disabledRaw).filter(known.contains).count
     }
 
     private var areaSummary: String {
-        let total = PumpSite.catalog.count
-        return enabledAreaCount == total ? "All areas" : "\(enabledAreaCount) of \(total)"
+        enabledAreaCount == areaTotal ? "All areas" : "\(enabledAreaCount) of \(areaTotal)"
     }
 }
 
@@ -257,7 +417,7 @@ struct SilhouettePickerView: View {
                     .accessibilityIdentifier("silhouetteOption-\(type.rawValue)")
                 }
             } footer: {
-                Text("The same figure is used on the body map and every site preview.")
+                Text("Used on the body map and every site preview.")
             }
         }
         .navigationTitle("Silhouette")
@@ -316,7 +476,7 @@ struct AreaSettingsView: View {
         let disabled = AreaSettings.parse(disabledRaw)
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Tap an area to include or exclude it for your \(device.noun). Excluded areas grey out and won't be suggested or shown on the body map for this track.")
+                Text("Tap to include or exclude. Excluded areas aren't suggested or mapped.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -324,12 +484,18 @@ struct AreaSettingsView: View {
                     .padding(.top, 4)
 
                 ForEach(PumpSite.Region.allCases) { region in
-                    let sites = PumpSite.catalog.filter { $0.region == region }
+                    // Custom sites land in the `.custom` region; the section is
+                    // skipped below when the user has none.
+                    let sites = PumpSite.allSites(for: device).filter { $0.region == region }
                     if !sites.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text(region.displayName)
-                                .font(.headline)
-                                .padding(.horizontal)
+                            // `.custom` has no title — its sites carry on from
+                            // the built-ins rather than being set apart.
+                            if !region.displayName.isEmpty {
+                                Text(region.displayName)
+                                    .font(.headline)
+                                    .padding(.horizontal)
+                            }
                             LazyVGrid(columns: columns, spacing: 16) {
                                 ForEach(sites) { site in
                                     AreaToggleCard(
@@ -361,7 +527,7 @@ struct AreaSettingsView: View {
         } else {
             // Keep at least one area enabled — a track with none has nothing
             // to rotate through.
-            guard disabled.count < PumpSite.catalog.count - 1 else { return }
+            guard disabled.count < PumpSite.allSites(for: device).count - 1 else { return }
             disabled.insert(id)
         }
         disabledRaw = AreaSettings.encode(disabled)
@@ -398,9 +564,11 @@ private struct AreaToggleCard: View {
                 // the off state doesn't read as a faint tint.
                 .saturation(isOn ? 1 : 0)
 
-                Text(site.bodyView == .front ? "Front" : "Rear")
-                    .font(.caption2.smallCaps())
-                    .foregroundStyle(.secondary)
+                if !site.isCustom {
+                    Text(site.bodyView == .front ? "Front" : "Rear")
+                        .font(.caption2.smallCaps())
+                        .foregroundStyle(.secondary)
+                }
                 Text(site.title)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(isOn ? .primary : .secondary)

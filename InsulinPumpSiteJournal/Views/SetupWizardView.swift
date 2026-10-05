@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 
 /// First-launch setup: a short, gentle walkthrough of what Rotate is, a
@@ -90,6 +91,7 @@ private struct WizardPage: Identifiable {
         case logo
         case devices
         case heatmap
+        case shortcuts
     }
 
     let id: String
@@ -115,6 +117,12 @@ private struct WizardPage: Identifiable {
             hero: .heatmap,
             title: "See what's rested",
             message: "A color-coded body map shows how recently each site was used, so the freshest spot is easy to find."
+        ),
+        WizardPage(
+            id: "shortcuts",
+            hero: .shortcuts,
+            title: "Ask, or just glance",
+            message: "Ask Siri how long your site has been on, or start the next one hands-free. Add the lock-screen widget to see the hour count without unlocking — tap it to start a new site."
         ),
     ]
 }
@@ -150,6 +158,8 @@ private struct WizardPageView: View {
             DeviceHeroView()
         case .heatmap:
             BodyMapDemoView(bodyType: bodyType)
+        case .shortcuts:
+            ShortcutsHeroView()
         }
     }
 }
@@ -352,6 +362,75 @@ private struct BodyMapDemoView: View {
 /// Plain-language statement of what Rotate is and isn't. Reached before
 /// configuration whether the walkthrough is finished or skipped, so it can't
 /// be bypassed. Its only action is to acknowledge and continue.
+// MARK: Page 4 — Siri phrases and the lock-screen widget
+
+/// The two hands-free entry points, shown as what the user actually sees: the
+/// phrase they say, and a mock of the accessory widget. The `ShortcutsLink`
+/// underneath opens the Shortcuts app, so the phrases can be renamed straight
+/// away rather than only discovered later.
+private struct ShortcutsHeroView: View {
+    var body: some View {
+        VStack(spacing: 18) {
+            lockScreenMock
+
+            VStack(alignment: .leading, spacing: 10) {
+                phrase("How long has my pump been on in Rotate?")
+                phrase("Start a new sensor site in Rotate.")
+            }
+
+            ShortcutsLink()
+                .shortcutsLinkStyle(.automaticOutline)
+                .accessibilityIdentifier("wizardShortcutsLink")
+        }
+    }
+
+    /// A stand-in for the accessory widget, not the widget itself — a real one
+    /// can't be rendered inside the app.
+    private var lockScreenMock: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(.quaternary)
+                VStack(spacing: -1) {
+                    Text("27h")
+                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    Text("PUMP")
+                        .font(.system(size: 7).weight(.semibold))
+                        .opacity(0.7)
+                }
+            }
+            .frame(width: 54, height: 54)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("SENSOR")
+                    .font(.caption2.weight(.semibold))
+                    .opacity(0.7)
+                Text("62h")
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                Text("Left upper arm")
+                    .font(.caption2)
+                    .opacity(0.8)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.quaternary))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Lock screen widgets showing the pump on 27 hours and the sensor on 62 hours.")
+    }
+
+    private func phrase(_ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: "quote.opening")
+                .font(.caption)
+                .foregroundStyle(AppTheme.accent)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
 struct WizardDisclaimerView: View {
     var onContinue: () -> Void
 
@@ -366,12 +445,12 @@ struct WizardDisclaimerView: View {
                     point(
                         icon: "book.closed.fill",
                         title: "A journal, not a medical device",
-                        text: "Rotate only helps you keep track of where you place your pump and sensor. It doesn't diagnose, treat, or make any dosing decisions — always follow your own clinical guidance."
+                        text: "Rotate tracks where you place your pump and sensor. It doesn't diagnose, treat, or make dosing decisions — follow your clinical guidance."
                     )
                     point(
                         icon: "lock.fill",
                         title: "Your data stays yours",
-                        text: "Rotate collects nothing about you. Your journal lives on this device and your own private iCloud — it is never sent to us or to any server."
+                        text: "No account, no analytics, no tracking. Your journal syncs to your private iCloud, or turn sync off in Settings and keep it on this device."
                     )
                     point(
                         icon: "heart.fill",
@@ -401,20 +480,9 @@ struct WizardDisclaimerView: View {
         .navigationBarBackButtonHidden(false)
     }
 
+    /// Shared with the What's New sheet — see `FeaturePoint`.
     private func point(icon: String, title: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 16) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(AppTheme.accent)
-                .frame(width: 34)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title)
-                    .font(.headline)
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        }
+        FeaturePoint(icon: icon, title: title, text: text)
     }
 }
 
@@ -435,7 +503,7 @@ struct WizardConfigView: View {
                 } header: {
                     Text("Your tracks")
                 } footer: {
-                    Text("Rotate is already set up with sensible defaults — every body area on, and a companion app ready to open after each placement. Start now to keep them, or tap a track to adjust which areas it rotates through and which app it opens. Everything is editable later in Settings.")
+                    Text("Rotate is already set up with sensible defaults — every body area on, and a companion app ready to open after each placement. Start now to keep them, or tap a track to adjust which areas it rotates through and which app it opens. Everything is editable later in Settings — including adding custom sites, for spots the figure doesn't cover.")
                 }
             }
             .scrollContentBackground(.hidden)

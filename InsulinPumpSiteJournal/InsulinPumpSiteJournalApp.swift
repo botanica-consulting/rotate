@@ -1,8 +1,20 @@
+import AppIntents
 import SwiftUI
 import SwiftData
 
 @main
 struct InsulinPumpSiteJournalApp: App {
+    init() {
+        #if DEBUG
+        // Before anything reads a preference.
+        TestLaunchState.resetIfRequested()
+        #endif
+        // Registered here, not in a view: an intent can run before any view
+        // exists (Siri on a cold launch), and StartPlacementIntent resolves the
+        // router through @Dependency.
+        AppDependencyManager.shared.add(dependency: AppRouter.shared)
+    }
+
     var body: some Scene {
         WindowGroup {
             AppRootView()
@@ -17,9 +29,62 @@ struct AppRootView: View {
     /// First-launch flag — flipped when the setup wizard finishes, so the
     /// walkthrough shows once and never again.
     @AppStorage("hasCompletedSetup") private var hasCompletedSetup = false
+    /// Mirrors `SyncSettings`. Observed here because the CloudKit mirror is
+    /// decided when the container is built, so turning sync on or off has to
+    /// rebuild it.
+    @AppStorage(SyncSettings.storageKey) private var syncEnabled = true
+    @Environment(\.scenePhase) private var scenePhase
+    /// Newest version whose changes have been shown. Existing users never see
+    /// the wizard again, so this sheet is the only way a change in wording — or
+    /// a new privacy switch — reaches them.
+    @AppStorage(ReleaseNotes.lastSeenVersionKey) private var lastSeenVersion = ""
+    @State private var showingWhatsNew = false
     @State private var containerResult = AppRootView.makeContainer()
+    /// Face ID / passcode gate. Shared, because the system's auth sheet takes
+    /// scene focus and would tear view-local state down underneath itself.
+    private var lock = AppLock.shared
 
     var body: some View {
+        container
+            // Reuses the recovery path's rebuild: the store file is the same
+            // either way, so only the mirror changes.
+            .onChange(of: syncEnabled) { _, isOn in
+                containerResult = Self.makeContainer()
+                // Only now is the mirror actually down, so this is where an
+                // armed purge can safely run: deleting the zone under a live
+                // mirror would just prompt it to upload the store again.
+                if !isOn {
+                    CloudKitPurgeController.shared.startIfArmed()
+                }
+            }
+            // Order matters: the lock sits under the shield, so backgrounding a
+            // locked app still shows the shield rather than the lock screen
+            // sliding into the app-switcher snapshot.
+            .overlay { lockScreen }
+            .overlay { privacyShield }
+            .onChange(of: scenePhase) { _, phase in
+                switch phase {
+                case .active:
+                    lock.sceneBecameActive()
+                case .inactive, .background:
+                    lock.sceneWentInactive()
+                @unknown default:
+                    break
+                }
+                updatePrivacyOverlay()
+            }
+            .onChange(of: lock.isLocked) { _, _ in updatePrivacyOverlay() }
+            .onChange(of: lock.isAuthenticating) { _, _ in updatePrivacyOverlay() }
+            .task { updatePrivacyOverlay() }
+            // A widget tap. The router holds the request until the journal is on
+            // screen, so a cold launch works too.
+            .onOpenURL { url in
+                AppRouter.shared.handle(url)
+            }
+    }
+
+    @ViewBuilder
+    private var container: some View {
         switch containerResult {
         case .success(let container):
             rootContent
@@ -36,14 +101,87 @@ struct AppRootView: View {
         }
     }
 
+    /// The journal behind Face ID, when the user has asked for that. Test
+    /// launches are never locked — a UI test cannot answer a biometric prompt.
+    @ViewBuilder
+    private var lockScreen: some View {
+        if lock.isLocked && !isTestLaunch {
+            AppLockView()
+                .transition(.opacity)
+        }
+    }
+
+    /// iOS snapshots the interface for the app switcher, and a journal of body
+    /// sites, dates and notes is not something to leave sitting in that
+    /// snapshot. Cover the UI whenever the scene isn't active; it can flash
+    /// briefly as a system sheet takes focus, which is the accepted cost.
+    @ViewBuilder
+    private var privacyShield: some View {
+        if scenePhase != .active {
+            PrivacyShieldView()
+                .transition(.opacity)
+        }
+    }
+
+    /// Drives the overlay window, which is what actually covers sheets. The
+    /// root-view overlays above stay as a second layer for the case where no
+    /// window scene can be found.
+    ///
+    /// Nothing moves while the biometric sheet is up: presenting it makes the
+    /// scene inactive, so reacting to that would swap windows underneath the
+    /// system prompt.
+    private func updatePrivacyOverlay() {
+        guard !isTestLaunch else {
+            PrivacyOverlayWindow.shared.show(.none)
+            return
+        }
+        guard !lock.isAuthenticating else { return }
+
+        if scenePhase != .active {
+            PrivacyOverlayWindow.shared.show(.shield)
+        } else if lock.isLocked {
+            PrivacyOverlayWindow.shared.show(.lock)
+        } else {
+            PrivacyOverlayWindow.shared.show(.none)
+        }
+    }
+
     /// The journal, or the one-time setup wizard on first launch.
     @ViewBuilder
     private var rootContent: some View {
         if shouldShowOnboarding {
-            SetupWizardView(onFinish: { hasCompletedSetup = true })
+            SetupWizardView(onFinish: {
+                // A new install just read the current wording in the wizard, so
+                // it starts up to date and never gets the What's New sheet too.
+                lastSeenVersion = Self.currentVersion
+                hasCompletedSetup = true
+            })
         } else {
             HistoryHomeView()
+                .sheet(isPresented: $showingWhatsNew) {
+                    WhatsNewView(notes: pendingReleaseNotes) {
+                        lastSeenVersion = Self.currentVersion
+                        showingWhatsNew = false
+                    }
+                }
+                .task {
+                    showingWhatsNew = !pendingReleaseNotes.isEmpty
+                }
         }
+    }
+
+    /// Changes this user hasn't been shown yet. Empty on a test launch, so the
+    /// sheet never lands on top of the UI tests; `--uitest-whatsnew` forces it
+    /// for its own visual QA.
+    private var pendingReleaseNotes: [ReleaseNotes] {
+        guard !isTestLaunch || CommandLine.arguments.contains("--uitest-whatsnew") else {
+            return []
+        }
+        return ReleaseNotes.unseen(lastSeen: lastSeenVersion, current: Self.currentVersion)
+    }
+
+    private static var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
     }
 
     /// Whether to present the setup wizard. Test launches go straight to the
@@ -51,11 +189,24 @@ struct AppRootView: View {
     /// forces the wizard for its own visual QA.
     private var shouldShowOnboarding: Bool {
         if CommandLine.arguments.contains("--uitest-onboarding") { return true }
-        if CommandLine.arguments.contains("--uitest-reset")
-            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-            return false
-        }
+        if isTestLaunch { return false }
         return !hasCompletedSetup
+    }
+
+    /// A UI-test or unit-test host launch: straight to the journal, with nothing
+    /// presented over it.
+    private var isTestLaunch: Bool { Self.isTestLaunchProcess }
+
+    /// Whether this process was launched by a test rather than by a person.
+    ///
+    /// Any `--uitest-*` flag counts, not just `--uitest-reset`. A visual-QA
+    /// launch that named only its own flag used to fall through to the live
+    /// CloudKit store and crash on a simulator with no iCloud account — the
+    /// kind of trap that only shows up when someone adds the next test, so the
+    /// predicate is broad by design.
+    static var isTestLaunchProcess: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || CommandLine.arguments.contains(where: { $0.hasPrefix("--uitest-") })
     }
 
     private static func makeContainer() -> Result<ModelContainer, Error> {
@@ -64,12 +215,11 @@ struct AppRootView: View {
         // spread of past placements so recency tiers are visible in visual QA.
         // The unit-test host also stays in memory: tests build their own
         // containers, and the host must not require CloudKit entitlements.
-        if CommandLine.arguments.contains("--uitest-reset")
-            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+        if isTestLaunchProcess {
             return Result {
                 let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
                 let container = try ModelContainer(
-                    for: PlacementRecord.self,
+                    for: PlacementRecord.self, CustomSite.self,
                     configurations: configuration
                 )
                 if CommandLine.arguments.contains("--uitest-seed") {
@@ -109,7 +259,10 @@ struct AppRootView: View {
         // store still opens and works locally, and mirroring resumes when
         // an account appears.
         return Result {
-            try ModelContainer(for: PlacementRecord.self, configurations: storeConfiguration())
+            try ModelContainer(
+                for: PlacementRecord.self, CustomSite.self,
+                configurations: storeConfiguration()
+            )
         }
     }
 
@@ -124,8 +277,16 @@ struct AppRootView: View {
     /// that needs the new fields. TestFlight and App Store builds use
     /// Production, where a missing field fails silently — no error, sync just
     /// stops working. See issue #3.
+    ///
+    /// Sync can be turned off (Settings → iCloud sync). Both branches are built
+    /// without an explicit `url:`, so they resolve to the same default store
+    /// file and flipping the switch keeps the journal exactly where it was —
+    /// `storeURLIsTheSameWithOrWithoutSync` in SyncSettingsTests guards that.
     private static func storeConfiguration() -> ModelConfiguration {
-        ModelConfiguration(cloudKitDatabase: .private("iCloud.consulting.botanica.rotate"))
+        guard SyncSettings.isEnabled else {
+            return ModelConfiguration(cloudKitDatabase: .none)
+        }
+        return ModelConfiguration(cloudKitDatabase: .private(SyncSettings.cloudKitContainerID))
     }
 
     /// Last-resort recovery: remove the store files (and SQLite sidecars) so

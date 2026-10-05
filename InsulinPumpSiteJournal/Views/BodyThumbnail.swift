@@ -25,6 +25,18 @@ struct BodyThumbnail: View {
     }
 
     var body: some View {
+        if site.isCustom {
+            // A custom site has no place on the figure, so there is no body to
+            // draw and nothing to zoom toward: the area floats on its own.
+            CustomSiteThumbnail(fill: fill, badgeDevice: badgeDevice)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(site.title)
+        } else {
+            bodyFigure
+        }
+    }
+
+    private var bodyFigure: some View {
         BodySilhouette(bodyType: bodyType, bodyView: site.bodyView)
             .overlay {
                 GeometryReader { geometry in
@@ -96,6 +108,18 @@ struct VignettedBodyThumbnail: View {
     var device: DeviceType? = nil
 
     var body: some View {
+        // A floating area is already the whole subject — there is no body to
+        // crop away, so it skips the zoom and the vignette entirely.
+        if site.isCustom {
+            CustomSiteThumbnail(fill: fill, badgeDevice: device)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(site.title)
+        } else {
+            vignettedFigure
+        }
+    }
+
+    private var vignettedFigure: some View {
         GeometryReader { geometry in
             let side = min(geometry.size.width, geometry.size.height)
             BodyThumbnail(

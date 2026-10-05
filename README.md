@@ -134,18 +134,29 @@ account-level CloudKit management token (not the container-scoped tokens under T
 
 ## Privacy
 
-Rotate collects nothing. There is no account, no server, no analytics, and no third-party SDK.
-Your journal is stored locally and, if you're signed into iCloud, mirrored to **your** private
-CloudKit database — which only you can read. See [`PRIVACY.md`](PRIVACY.md).
+There is no account, no Botanica server, no analytics, and no third-party SDK — the developer
+never sees your data. The journal itself *is* personal health-related data, and it is stored
+locally and, while iCloud sync is on, mirrored to **your** private CloudKit database, which only
+you can read. iCloud is Apple's server, so sync can be turned off (Settings → iCloud sync) to
+keep everything on one device, with an option to delete the copy already in iCloud. A
+`PrivacyInfo.xcprivacy` manifest ships in the app. See [`PRIVACY.md`](PRIVACY.md).
 
 ## Project layout
 
-- `InsulinPumpSiteJournal/Models/` — `PlacementRecord` (SwiftData) plus the compile-time
-  `PumpSite` catalog (12 sites), `DeviceType`, `CompanionApp`, `BodyType`, and `AreaSettings`.
+- `InsulinPumpSiteJournal/Models/` — `PlacementRecord` and `CustomSite` (SwiftData) plus the
+  compile-time `PumpSite` catalog (12 built-in sites), `DeviceType`, `CompanionApp`, `BodyType`,
+  `AreaSettings`, `CustomSiteStore`, `SyncSettings`, and `ReleaseNotes`.
 - `InsulinPumpSiteJournal/Services/` — `SiteSuggestionEngine` (LRU + region-diversity picker),
   `SiteRecencyModel`, and the `SVGAreaPath` parser behind the body-map areas.
 - `InsulinPumpSiteJournal/Views/` — history home, the new-placement flow (suggestions → confirm
   → Loop hand-off), the body-map heatmap, settings, and the body silhouettes.
+- `InsulinPumpSiteJournal/AppIntents/` — the Siri intents (`AskSiteAgeIntent`,
+  `StartPlacementIntent`) and the `AppShortcutsProvider` that gives them phrases.
+- `Shared/` — compiled into both the app and the widget: the App Group, the `SiteSnapshot` the
+  app publishes and the widget reads, the `WearDuration` arithmetic both use, and the
+  `rotate://` deep link one composes and the other resolves.
+- `RotateWidget/` — the lock-screen/home-screen widget extension. It reads the snapshot, not the
+  SwiftData store, so it needs neither the store URL nor CloudKit.
 - `InsulinPumpSiteJournal/Design/AppTheme.swift` — the palette, tier colors, and shared metrics.
 - `assets-src/`, `scripts/` — the SVG mounting-area sources and the tools that render them and
   the app icon.
