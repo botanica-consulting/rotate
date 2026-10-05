@@ -6,12 +6,15 @@ WHAT IT DOES
 • Get least-recently-used, region-diverse suggestions when it's time for a new site.
 • Keep a running history you can look back over.
 • Choose which areas each track rotates through, and a body figure that fits you.
+• Correct placement times and add custom sites for either track.
+• Ask Siri how long a site has been on, or start your next placement.
+• See the hour count in a lock-screen widget and tap to start a new site.
 
 BUILT WITH THE DIY COMMUNITY IN MIND
 After you confirm a placement, Rotate can hand off to your looping app so you can finish setup without hunting for it. Everything works just as well on its own.
 
 PRIVATE BY DESIGN
-Your journal lives on your device and syncs only through your own private iCloud. Rotate has no account, no servers, and no analytics — your data is never sent to us or anyone else. With no iCloud account, it simply stays on your iPhone.
+Your journal lives on your device. With iCloud sync on, a copy is stored in your private iCloud database on Apple's servers. You can turn sync off to keep your journal on one device and choose to remove the copy already in iCloud. With no iCloud account, it stays on your iPhone. Botanica never receives your journal: Rotate has no account, no developer-operated servers, and no analytics. An optional Face ID lock protects access to the journal, and Rotate hides it in the app switcher.
 
 NOT A MEDICAL DEVICE
 Rotate is a journaling and reminder aid. It does not read glucose, calculate insulin doses, diagnose skin or tissue, or communicate with your pump or CGM. Always follow your device's instructions and your care team's guidance for site selection and placement.

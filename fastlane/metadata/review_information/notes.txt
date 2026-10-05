@@ -1,5 +1,7 @@
 Rotate is a site-rotation journal. No account or login is required — the app opens straight to its home screen.
 
-It does not read glucose, calculate insulin doses, connect to any pump/CGM/Bluetooth device, or contact any server. All data is stored locally with SwiftData and syncs only to the tester's own private iCloud (CloudKit); with no iCloud account it stays on-device.
+It does not read glucose, calculate insulin doses, or connect to any pump/CGM/Bluetooth device. Journal data is stored locally with SwiftData. With iCloud sync enabled, it also syncs to the user's private CloudKit database on Apple's servers. Users can turn sync off and optionally remove the iCloud copy. With no iCloud account, the journal stays on-device. Botanica operates no servers and receives no journal data.
+
+Version 1.1.1 adds editable placement times, custom sites for each track, an iCloud sync toggle, Siri shortcuts, a lock-screen widget, and an optional Face ID journal lock. The lock is off by default. No hardware or paid service is needed to review these features.
 
 The optional "continue in Loop" hand-off only opens the Loop app via its URL scheme if it happens to be installed; it is not required to use any feature of Rotate.

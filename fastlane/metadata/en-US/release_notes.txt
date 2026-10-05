@@ -5,4 +5,5 @@ What's new in 1.1.1
 • Turn iCloud sync off. Sync stays on by default, but you can now keep your journal on one device only — and remove the copy already in your iCloud.
 • Ask Siri how long your pump or sensor has been on, or start the next site hands-free.
 • A lock-screen widget showing the hour count — tap it to start a new site.
+• An optional Face ID lock to protect access to your journal.
 • Clearer privacy wording: the app now says plainly that Apple holds the synced copy while sync is on, and it hides your journal in the app switcher.
